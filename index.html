@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>期权卖方EV计算器</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        
+        .section h2 {
+            color: #444;
+            margin-top: 0;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input[type="file"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+        }
+        
+        .btn-success:hover {
+            background-color: #1e7e34;
+        }
+        
+        .btn-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background-color: #e0a800;
+        }
+        
+        .filter-section {
+            background-color: #e7f3ff;
+            border-color: #007bff;
+        }
+        
+        .filter-info {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .filter-info h3 {
+            margin-top: 0;
+            color: #155724;
+        }
+        
+        .filter-controls {
+            display: none;
+            margin-top: 15px;
+        }
+        
+        .filter-controls.show {
+            display: block;
+        }
+        
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .filter-row input {
+            width: 120px;
+        }
+        
+        .filter-row label {
+            margin-bottom: 0;
+            min-width: 80px;
+        }
+        
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .preview-table th,
+        .preview-table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: center;
+        }
+        
+        .preview-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .preview-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .preview-table tr:hover {
+            background-color: #e9ecef;
+        }
+        
+        .import-stats {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e7f3ff;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .import-stats h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        
+        .import-stats p {
+            margin: 5px 0;
+            color: #495057;
+        }
+        
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .success {
+            color: #155724;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-calculator"></i> 期权卖方预期价值(EV)计算器</h1>
+            <p>基于富途希腊字母数据的简化版期权分析工具</p>
+        </header>
+
+        <div class="main-content">
+            <!-- CSV导入功能 -->
+            <div class="csv-import-section">
+                <div class="import-card">
+                    <h2><i class="fas fa-file-csv"></i> CSV批量导入</h2>
+                    <p>支持富途导出的期权数据格式，批量分析多个期权</p>
+                    
+                    <div class="import-options">
+                        <div class="file-upload">
+                            <input type="file" id="csv-file" accept=".csv" style="display: none;">
+                            <button type="button" class="upload-btn" id="file-select-btn">
+                                <i class="fas fa-upload"></i> 选择CSV文件
+                            </button>
+                            <span id="file-name" class="file-name">未选择文件</span>
+                        </div>
+                        
+                        <div class="auto-info" id="auto-info" style="display: none;">
+                            <div class="info-item">
+                                <i class="fas fa-chart-line"></i>
+                                <span>标的当前价格: <strong id="auto-price">--</strong></span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>剩余到期天数: <strong id="auto-days">--</strong></span>
+                            </div>
+                        </div>
+                        
+                        <!-- 过滤系统 -->
+                        <div class="filter-system" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+                            <h4 style="margin-bottom: 15px; color: #495057;">
+                                <i class="fas fa-filter"></i> Delta过滤系统
+                            </h4>
+                            <div class="filter-content" style="text-align: center;">
+                                <div class="filter-info" style="margin-bottom: 15px;">
+                                    <p style="color: #6c757d; font-size: 0.9rem; margin: 5px 0;">
+                                        系统会自动识别期权类型并设置合适的Delta范围：<br>
+                                        • 看涨期权：Delta范围 0.01 到 0.4<br>
+                                        • 看跌期权：Delta范围 -0.4 到 -0.01<br>
+                                        • 混合期权：Delta范围 -0.4 到 0.4<br>
+                                        这个范围适合卖方策略，风险相对可控
+                                    </p>
+                                </div>
+                                <!-- 自动设置信息将在这里显示 -->
+                            </div>
+                        </div>
+                        
+                        <div class="divider" style="margin: 20px 0; text-align: center; color: #666;">
+                            <span style="background: white; padding: 0 10px;">或者</span>
+                            <hr style="margin-top: -10px; border: 1px solid #ddd;">
+                        </div>
+                        
+                        <!-- API数据获取功能 -->
+                        <div class="api-section">
+                            <h4 style="margin-bottom: 15px; color: #495057;">
+                                <i class="fas fa-cloud-download-alt"></i> 通过API获取数据
+                            </h4>
+                            <div class="api-params">
+                                                            <div class="form-group">
+                                <label for="stock-code">股票代码:</label>
+                                <select id="stock-code" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                                    <optgroup label="美股 (US)">
+                                        <option value="US.TSLA">特斯拉 (Tesla) - US.TSLA</option>
+                                        <option value="US.NVDA">英伟达 (NVIDIA) - US.NVDA</option>
+                                        <option value="US.AAPL">苹果 (Apple) - US.AAPL</option>
+                                        <option value="US.AMZN">亚马逊 (Amazon) - US.AMZN</option>
+                                        <option value="US.PDD">拼多多 (Pinduoduo) - US.PDD</option>
+                                        <option value="US.MSFT">微软 (Microsoft) - US.MSFT</option>
+                                        <option value="US.META">Meta - US.META</option>
+                                        <option value="US.GOOGL">谷歌 (Google) - US.GOOGL</option>
+                                    </optgroup>
+                                    <optgroup label="港股 (HK)">
+                                        <option value="HK.00700">腾讯控股 (Tencent) - HK.00700</option>
+                                        <option value="HK.09988">阿里巴巴 (Alibaba) - HK.09988</option>
+                                        <option value="HK.03690">美团 (Meituan) - HK.03690</option>
+                                        <option value="HK.01810">小米 (Xiaomi) - HK.01810</option>
+                                        <option value="HK.09618">京东 (JD) - HK.09618</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                                <div class="form-group">
+                                    <label for="target-date">目标到期日期:</label>
+                                    <input type="date" id="target-date" value="2025-08-22" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div class="api-status" id="api-status" style="display: none; margin-top: 10px; padding: 10px; border-radius: 4px;">
+                                    <span id="status-text"></span>
+                                </div>
+                            </div>
+                            <button class="api-btn" id="api-btn" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; width: 100%;">
+                                <i class="fas fa-cloud-download-alt"></i> 通过API获取数据
+                            </button>
+                        </div>
+                        
+                        <button class="import-btn" id="import-btn" style="background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); cursor: pointer; opacity: 1;">
+                            <i class="fas fa-play"></i> 导入并分析
+                        </button>
+                        
+                        <div class="import-preview" id="import-preview" style="display: none;">
+                            <h3>导入预览</h3>
+                            <div class="preview-content" id="preview-content"></div>
+                            
+                            <!-- 添加数据验证部分 -->
+                            <div class="data-validation" id="data-validation" style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border: 1px solid #b3d9ff;">
+                                <h4 style="color: #0066cc; margin-bottom: 10px;">🔍 数据验证</h4>
+                                <div id="validation-content"></div>
+                            </div>
+                            
+                            <div class="preview-actions">
+                                <button class="analyze-all-btn" onclick="analyzeAllOptions()">
+                                    <i class="fas fa-chart-line"></i> 批量分析所有期权
+                                </button>
+                                <button class="clear-import-btn" onclick="clearImport()">
+                                    <i class="fas fa-trash"></i> 清空导入
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果显示 -->
+            <div class="results-section" id="results-section" style="display: none;">
+                <div class="results-card">
+                    <h2><i class="fas fa-chart-line"></i> 批量分析结果</h2>
+                    <div class="batch-results">
+                        <div class="batch-summary">
+                            <h3>📊 分析汇总</h3>
+                            <p>共分析了 <span id="analysis-count">0</span> 个期权</p>
+                        </div>
+                        <div class="batch-table" id="batch-table"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <!-- 添加Chart.js库用于绘制正态分布图 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- 调试脚本 -->
+    <script>
+        // 页面完全加载后的额外检查
+        window.addEventListener('load', function() {
+            console.log('=== 页面完全加载后的调试 ===');
+            
+            const fileSelectBtn = document.getElementById('file-select-btn');
+            const importBtn = document.getElementById('import-btn');
+            const fileInput = document.getElementById('csv-file');
+            
+            console.log('按钮元素检查:', {
+                fileSelectBtn: fileSelectBtn,
+                importBtn: importBtn,
+                fileInput: fileInput
+            });
+            
+            if (fileSelectBtn) {
+                console.log('文件选择按钮存在，尝试添加测试点击事件');
+                
+                // 添加一个测试点击事件
+                fileSelectBtn.addEventListener('click', function() {
+                    console.log('🎉 文件选择按钮点击成功！');
+                });
+                
+                // 检查按钮的样式
+                const style = window.getComputedStyle(fileSelectBtn);
+                console.log('按钮样式检查:', {
+                    display: style.display,
+                    visibility: style.visibility,
+                    pointerEvents: style.pointerEvents,
+                    zIndex: style.zIndex
+                });
+            } else {
+                console.error('❌ 文件选择按钮未找到！');
+            }
+            
+            console.log('=== 调试完成 ===');
+        });
+    </script>
+</body>
+</html> 
