@@ -126,18 +126,27 @@ function importCSV() {
             console.log('开始计算期望价值...');
             const optionsWithEV = calculateAllOptionsEV(importedOptions, underlyingPrice, daysToExpiry);
             
-            // 显示EV结果
-            showEVResults(optionsWithEV);
-            
-            // 隐藏预览区域，显示结果区域
-            const importPreview = document.getElementById('import-preview');
-            if (importPreview) {
-                importPreview.style.display = 'none';
-            }
-            
-            const resultsSection = document.getElementById('results-section');
-            if (resultsSection) {
-                resultsSection.style.display = 'block';
+            // 只有在有数据时才显示EV结果
+            if (optionsWithEV && optionsWithEV.length > 0) {
+                showEVResults(optionsWithEV);
+                
+                // 隐藏预览区域，显示结果区域
+                const importPreview = document.getElementById('import-preview');
+                if (importPreview) {
+                    importPreview.style.display = 'none';
+                }
+                
+                const resultsSection = document.getElementById('results-section');
+                if (resultsSection) {
+                    resultsSection.style.display = 'block';
+                }
+            } else {
+                console.log('没有期权数据，不显示结果');
+                // 确保结果区域隐藏
+                const resultsSection = document.getElementById('results-section');
+                if (resultsSection) {
+                    resultsSection.style.display = 'none';
+                }
             }
             
             // 存储带EV的期权数据
@@ -296,7 +305,7 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
                 console.log('✅ 从CSV提取到到期天数:', csvDaysToExpiry);
             }
             
-            // 尝试从第3行数据推断标的价格
+                    // 尝试从第3行数据推断标的价格
             if (lines.length > 2) {
                 const thirdLine = lines[2];
                 const values = thirdLine.split(',').map(v => v.replace(/"/g, '').trim());
@@ -310,6 +319,34 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
                         // Delta接近0.5的行权价通常接近标的价格
                         csvUnderlyingPrice = strike;
                         console.log('✅ 从CSV推断标的价格:', csvUnderlyingPrice);
+                    }
+                }
+                
+                // 如果上面的方法失败，尝试从看涨期权中找到Delta距离0.5最近的行权价
+                if (!csvUnderlyingPrice || csvUnderlyingPrice === underlyingPrice) {
+                    // 从看涨期权数据中找到Delta距离0.5最近的行权价
+                    let bestStrike = null;
+                    let minDeltaDiff = Infinity;
+                    
+                    for (let i = 0; i < csvData.length; i++) {
+                        const row = csvData[i];
+                        if (row && row['行权价'] && row['Delta']) {
+                            const strike = parseFloat(row['行权价']);
+                            const delta = parseFloat(row['Delta']);
+                            
+                            if (!isNaN(strike) && !isNaN(delta) && strike > 100 && strike < 1000 && delta > 0) {
+                                const deltaDiff = Math.abs(delta - 0.5);
+                                if (deltaDiff < minDeltaDiff) {
+                                    minDeltaDiff = deltaDiff;
+                                    bestStrike = strike;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (bestStrike && bestStrike > 200 && bestStrike < 500) {
+                        csvUnderlyingPrice = bestStrike;
+                        console.log('✅ 从看涨期权Delta距离0.5最近的行权价推断标的价格:', csvUnderlyingPrice, 'Delta差异:', minDeltaDiff);
                     }
                 }
             }
@@ -356,6 +393,16 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
     // 找到行权价列的位置
     let strikeColIndex = -1;
     const headers = Object.keys(csvData[0]);
+    
+    // 添加调试信息：显示headers数组的完整内容
+    console.log('=== Headers数组分析 ===');
+    console.log('Headers数组长度:', headers.length);
+    console.log('Headers数组内容:', headers);
+    console.log('Headers数组索引映射:');
+    headers.forEach((header, index) => {
+        console.log(`  索引${index}: "${header}"`);
+    });
+    
     for (let i = 0; i < headers.length; i++) {
         if (headers[i].includes('行权价')) {
             strikeColIndex = i;
@@ -382,10 +429,11 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
     for (let i = 0; i < csvData.length; i++) {
         const row = csvData[i];
         
-        // 跳过空行和标题行
-        if (!row[headers[strikeColIndex]] || row[headers[strikeColIndex]].includes('到期日')) {
-            continue;
-        }
+            // 跳过空行和标题行
+    if (!row[headers[strikeColIndex]] || row[headers[strikeColIndex]].includes('到期日')) {
+        console.log(`跳过第${i}行: 行权价列值为 "${row[headers[strikeColIndex]]}"`);
+        continue;
+    }
         
         console.log(`处理第${i}行:`, {
             行权价: row[headers[strikeColIndex]],
@@ -429,18 +477,77 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
         let callVolume = null;
         let callOpenInterest = null;
 
-        // 使用列索引精确访问看涨期权数据
-        const callDeltaValue = row[headers[5]];  // 索引5: Delta
-        const callMidPriceValue = row[headers[10]];  // 索引10: 中间价
-        const callBidValue = row[headers[13]];  // 索引13: 买入价
-        const callAskValue = row[headers[12]];  // 索引12: 卖出价
-        const callLastPriceValue = row[headers[9]];  // 索引9: 最新价
-        const callImpliedVolValue = row[headers[11]];  // 索引11: 隐含波动率
-        const callGammaValue = row[headers[4]];  // 索引4: Gamma
-        const callThetaValue = row[headers[3]];  // 索引3: Theta
-        const callVegaValue = row[headers[2]];  // 索引2: Vega
-        const callVolumeValue = row[headers[7]];  // 索引7: 成交量
-        const callOpenInterestValue = row[headers[6]];  // 索引6: 未平仓数
+        // 智能查找列索引，避免同名列冲突
+        const findColumnIndex = (columnName, startIndex = 0, endIndex = headers.length, expectedValue = null) => {
+            for (let i = startIndex; i < endIndex; i++) {
+                if (headers[i].includes(columnName)) {
+                    // 如果指定了期望值，验证该列的数据是否符合预期
+                    if (expectedValue !== null) {
+                        const value = row[headers[i]];
+                        if (value && value !== '' && value !== '-') {
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue) && Math.abs(numValue - expectedValue) < 0.1) {
+                                return i; // 找到匹配的列
+                            }
+                        }
+                    } else {
+                        return i; // 没有期望值，直接返回第一个匹配的列
+                    }
+                }
+            }
+            return -1;
+        };
+        
+        // 添加调试信息：显示当前行的所有列名和值
+        console.log(`第${i}行 - 列名和值:`);
+        headers.forEach((header, colIndex) => {
+            const value = row[header];
+            if (value && value !== '' && value !== '-') {
+                console.log(`  列${colIndex} (${header}): ${value}`);
+            }
+        });
+        
+        // 看涨期权列（行权价左边，索引0到strikeColIndex-1）
+        // 使用位置信息来避免同名列冲突
+        const callDeltaIndex = findColumnIndex('Delta', 0, strikeColIndex);
+        const callMidPriceIndex = findColumnIndex('中间价', 0, strikeColIndex);
+        const callBidIndex = findColumnIndex('买入价', 0, strikeColIndex);
+        const callAskIndex = findColumnIndex('卖出价', 0, strikeColIndex);
+        const callLastPriceIndex = findColumnIndex('最新价', 0, strikeColIndex);
+        const callImpliedVolIndex = findColumnIndex('隐含波动率', 0, strikeColIndex);
+        const callGammaIndex = findColumnIndex('Gamma', 0, strikeColIndex);
+        const callThetaIndex = findColumnIndex('Theta', 0, strikeColIndex);
+        const callVegaIndex = findColumnIndex('Vega', 0, strikeColIndex);
+        const callVolumeIndex = findColumnIndex('成交量', 0, strikeColIndex);
+        const callOpenInterestIndex = findColumnIndex('未平仓数', 0, strikeColIndex);
+        
+        console.log('看涨期权列索引查找结果:', {
+            Delta: callDeltaIndex,
+            中间价: callMidPriceIndex,
+            买入价: callBidIndex,
+            卖出价: callAskIndex,
+            最新价: callLastPriceIndex,
+            隐含波动率: callImpliedVolIndex,
+            Gamma: callGammaIndex,
+            Theta: callThetaIndex,
+            Vega: callVegaIndex,
+            成交量: callVolumeIndex,
+            未平仓数: callOpenInterestIndex,
+            盈利概率: '盈利概率'
+        });
+        
+        // 使用动态索引访问看涨期权数据
+        const callDeltaValue = callDeltaIndex >= 0 ? row[headers[callDeltaIndex]] : null;
+        const callMidPriceValue = callMidPriceIndex >= 0 ? row[headers[callMidPriceIndex]] : null;
+        const callBidValue = callBidIndex >= 0 ? row[headers[callBidIndex]] : null;
+        const callAskValue = callAskIndex >= 0 ? row[headers[callAskIndex]] : null;
+        const callLastPriceValue = callLastPriceIndex >= 0 ? row[headers[callLastPriceIndex]] : null;
+        const callImpliedVolValue = callImpliedVolIndex >= 0 ? row[headers[callImpliedVolIndex]] : null;
+        const callGammaValue = callGammaIndex >= 0 ? row[headers[callGammaIndex]] : null;
+        const callThetaValue = callThetaIndex >= 0 ? row[headers[callThetaIndex]] : null;
+        const callVegaValue = callVegaIndex >= 0 ? row[headers[callVegaIndex]] : null;
+        const callVolumeValue = callVolumeIndex >= 0 ? row[headers[callVolumeIndex]] : null;
+        const callOpenInterestValue = callOpenInterestIndex >= 0 ? row[headers[callOpenInterestIndex]] : null;
 
         console.log(`第${i}行 - 看涨期权数据:`, {
             Delta: callDeltaValue,
@@ -469,10 +576,12 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
             }
         }
 
-        if (callDelta !== null && callMidPrice !== null) {
+        // 放宽验证条件，只要有Delta值就尝试创建期权
+        if (callDelta !== null) {
             const callOption = {
                 type: 'Call',
                 strike: strike,
+                strikePrice: strike, // 添加strikePrice字段以保持兼容性
                 bid: callBid,
                 ask: callAsk,
                 lastPrice: callLastPrice,
@@ -486,12 +595,17 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
                 openInterest: callOpenInterest,
                 volumeText: callVolumeValue || '0张',
                 openInterestText: callOpenInterestValue || '0张',
-                profitProbability: row['盈利概率'] || '0%', // 使用列名直接获取盈利概率
+                profitProbability: (parsePercentage(row[headers[1]]) * 100).toFixed(1) + '%', // 看涨期权盈利概率在索引1
+                underlyingPrice: underlyingPrice, // 添加标的价格字段
+                daysToExpiry: daysToExpiry, // 添加到期天数字段
+                iv: callImpliedVol, // 添加隐含波动率字段
+                optionType: 'Call', // 添加期权类型字段
                 intrinsic_value: Math.max(0, underlyingPrice - strike),
+                timeValue: Math.max(0, callMidPrice - Math.max(0, underlyingPrice - strike)), // 时间价值 = 权利金 - 内在价值
                 premium: callMidPrice
             };
             
-            console.log(`看涨期权盈利概率: ${row['盈利概率']}, 列名: 盈利概率`);
+            console.log(`看涨期权盈利概率: ${row[headers[1]]}, 列索引: 1`);
             
             callOptions.push(callOption);
             options.push(callOption);
@@ -511,18 +625,46 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
         let putVolume = null;
         let putOpenInterest = null;
 
-        // 使用列索引精确访问看跌期权数据
-        const putDeltaValue = row[headers[23]];  // 索引23: Delta
-        const putMidPriceValue = row[headers[18]];  // 索引18: 中间价
-        const putBidValue = row[headers[15]];  // 索引15: 买入价
-        const putAskValue = row[headers[16]];  // 索引16: 卖出价
-        const putLastPriceValue = row[headers[19]];  // 索引19: 最新价
-        const putImpliedVolValue = row[headers[17]];  // 索引17: 隐含波动率
-        const putGammaValue = row[headers[24]];  // 索引24: Gamma
-        const putThetaValue = row[headers[25]];  // 索引25: Theta
-        const putVegaValue = row[headers[26]];  // 索引26: Vega
-        const putVolumeValue = row[headers[21]];  // 索引21: 成交量
-        const putOpenInterestValue = row[headers[22]];  // 索引22: 未平仓数
+        // 根据CSV结构，看跌期权列索引是固定的（行权价右边，索引15-28）
+        const putDeltaIndex = 23;        // Delta
+        const putMidPriceIndex = 18;     // 中间价
+        const putBidIndex = 15;          // 买入价
+        const putAskIndex = 16;          // 卖出价
+        const putLastPriceIndex = 19;    // 最新价
+        const putImpliedVolIndex = 17;   // 隐含波动率
+        const putGammaIndex = 24;        // Gamma
+        const putThetaIndex = 25;        // Theta
+        const putVegaIndex = 26;         // Vega
+        const putVolumeIndex = 21;       // 成交量
+        const putOpenInterestIndex = 22; // 未平仓数
+        
+        // 使用动态索引访问看跌期权数据
+        const putDeltaValue = putDeltaIndex >= 0 ? row[headers[putDeltaIndex]] : null;
+        const putMidPriceValue = putMidPriceIndex >= 0 ? row[headers[putMidPriceIndex]] : null;
+        const putBidValue = putBidIndex >= 0 ? row[headers[putBidIndex]] : null;
+        const putAskValue = putAskIndex >= 0 ? row[headers[putAskIndex]] : null;
+        const putLastPriceValue = putLastPriceIndex >= 0 ? row[headers[putLastPriceIndex]] : null;
+        const putImpliedVolValue = putImpliedVolIndex >= 0 ? row[headers[putImpliedVolIndex]] : null;
+        const putGammaValue = putGammaIndex >= 0 ? row[headers[putGammaIndex]] : null;
+        const putThetaValue = putThetaIndex >= 0 ? row[headers[putThetaIndex]] : null;
+        const putVegaValue = putVegaIndex >= 0 ? row[headers[putVegaIndex]] : null;
+        const putVolumeValue = putVolumeIndex >= 0 ? row[headers[putVolumeIndex]] : null;
+        const putOpenInterestValue = putOpenInterestIndex >= 0 ? row[headers[putOpenInterestIndex]] : null;
+        
+        console.log('看跌期权列索引查找结果:', {
+            Delta: putDeltaIndex,
+            中间价: putMidPriceIndex,
+            买入价: putBidIndex,
+            卖出价: putAskIndex,
+            最新价: putLastPriceIndex,
+            隐含波动率: putImpliedVolIndex,
+            Gamma: putGammaIndex,
+            Theta: putThetaIndex,
+            Vega: putVegaIndex,
+            成交量: putVolumeIndex,
+            未平仓数: putOpenInterestIndex,
+            盈利概率: '盈利概率'
+        });
 
         console.log(`第${i}行 - 看跌期权数据:`, {
             Delta: putDeltaValue,
@@ -551,10 +693,12 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
             }
         }
 
-        if (putDelta !== null && putMidPrice !== null) {
+        // 放宽验证条件，只要有Delta值就尝试创建期权
+        if (putDelta !== null) {
             const putOption = {
                 type: 'Put',
                 strike: strike,
+                strikePrice: strike, // 添加strikePrice字段以保持兼容性
                 bid: putBid || 0,
                 ask: putAsk || 0,
                 lastPrice: putLastPrice || 0,
@@ -568,12 +712,17 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
                 openInterest: putOpenInterest || 0,
                 volumeText: putVolumeValue || '0张',
                 openInterestText: putOpenInterestValue || '0张',
-                profitProbability: row['盈利概率'] || '0%', // 使用列名直接获取盈利概率
+                profitProbability: (parsePercentage(row[headers[27]]) * 100).toFixed(1) + '%', // 看跌期权盈利概率在索引27
+                underlyingPrice: underlyingPrice, // 添加标的价格字段
+                daysToExpiry: daysToExpiry, // 添加到期天数字段
+                iv: putImpliedVol, // 添加隐含波动率字段
+                optionType: 'Put', // 添加期权类型字段
                 intrinsic_value: Math.max(0, strike - underlyingPrice),
+                timeValue: Math.max(0, putMidPrice - Math.max(0, strike - underlyingPrice)), // 时间价值 = 权利金 - 内在价值
                 premium: putMidPrice
             };
             
-            console.log(`看跌期权盈利概率: ${row['盈利概率']}, 列名: 盈利概率`);
+            console.log(`看跌期权盈利概率: ${row[headers[27]]}, 列索引: 27`);
             
             putOptions.push(putOption);
             options.push(putOption);
@@ -581,9 +730,32 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
         }
     }
     
-    console.log('处理完成，总期权数量:', options.length);
+    console.log('=== CSV处理完成 ===');
+    console.log('总期权数量:', options.length);
     console.log('看涨期权数量:', callOptions.length);
     console.log('看跌期权数量:', putOptions.length);
+    
+    // 显示前几个期权的详细信息
+    if (options.length > 0) {
+        console.log('前3个期权示例:');
+        options.slice(0, 3).forEach((option, index) => {
+            console.log(`期权${index + 1}:`, {
+                类型: option.type,
+                行权价: option.strike,
+                Delta: option.delta,
+                中间价: option.midPrice,
+                隐含波动率: option.impliedVolatility
+            });
+        });
+    }
+    
+    if (options.length === 0) {
+        console.warn('⚠️ 没有找到任何期权数据，可能的原因:');
+        console.warn('1. CSV格式与预期不符');
+        console.warn('2. 列名不匹配');
+        console.warn('3. 数据行被过滤掉');
+        console.warn('4. 硬编码的列索引失效');
+    }
     
     // 应用Delta过滤
     let deltaMin, deltaMax;
@@ -601,13 +773,23 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
     // 手动过滤期权
     const filteredOptions = options.filter(option => {
         const delta = option.delta;
-        const inRange = delta >= deltaMin && delta <= deltaMax;
+        const midPrice = option.midPrice;
         
-        if (!inRange) {
+        // Delta范围过滤
+        const deltaInRange = delta >= deltaMin && delta <= deltaMax;
+        
+        // 中间价有效性过滤
+        const midPriceValid = midPrice > 0;
+        
+        if (!deltaInRange) {
             console.log(`过滤掉期权 ${option.type} ${option.strike}: Delta=${delta} 不在范围 [${deltaMin}, ${deltaMax}] 内`);
         }
         
-        return inRange;
+        if (!midPriceValid) {
+            console.log(`过滤掉期权 ${option.type} ${option.strike}: 中间价=${midPrice} 无效`);
+        }
+        
+        return deltaInRange && midPriceValid;
     });
     
     console.log(`Delta过滤: ${deltaMin} 到 ${deltaMax}`);
@@ -687,7 +869,7 @@ function analyzeAllOptions() {
     }
     
     // 显示批量分析结果
-    showBatchAnalysisResults(importedOptions, parseFloat(document.getElementById('csv-underlying-price').value), parseInt(document.getElementById('csv-days-to-expiry').value));
+            showBatchAnalysisResults(importedOptions, parseFloat(document.getElementById('shared-underlying-price').value), parseInt(document.getElementById('shared-days-to-expiry').value));
 }
 
 // 显示批量分析结果
@@ -787,7 +969,7 @@ function showBatchAnalysisResults(options, underlyingPrice, daysToExpiry) {
                     <td>${option.delta.toFixed(4)}</td>
                     <td>$${option.midPrice.toFixed(2)}</td>
                     <td>$${option.intrinsic_value.toFixed(2)}</td>
-                    <td>$${(option.premium - option.intrinsic_value).toFixed(2)}</td>
+                    <td>$${(option.timeValue || (option.premium - option.intrinsic_value)).toFixed(2)}</td>
                     <td>${option.profitProbability}</td>
                     <td class="${option.ev > 0 ? 'positive' : 'negative'}">${option.ev.toFixed(4)}</td>
                     <td>${option.risk_reward_ratio.toFixed(2)}</td>
@@ -836,7 +1018,7 @@ function showBatchAnalysisResults(options, underlyingPrice, daysToExpiry) {
                     <td>${option.delta.toFixed(4)}</td>
                     <td>$${option.midPrice.toFixed(2)}</td>
                     <td>$${option.intrinsic_value.toFixed(2)}</td>
-                    <td>$${(option.premium - option.intrinsic_value).toFixed(2)}</td>
+                    <td>$${(option.timeValue || (option.premium - option.intrinsic_value)).toFixed(2)}</td>
                     <td>${option.profitProbability}</td>
                     <td class="${option.ev > 0 ? 'positive' : 'negative'}">${option.ev.toFixed(4)}</td>
                     <td>${option.risk_reward_ratio.toFixed(2)}</td>
@@ -880,7 +1062,12 @@ function showBatchAnalysisResults(options, underlyingPrice, daysToExpiry) {
     }
     
     resultsSection.innerHTML = html;
-    resultsSection.style.display = 'block';
+    // 只有在有内容时才显示
+    if (html.trim()) {
+        resultsSection.style.display = 'block';
+    } else {
+        resultsSection.style.display = 'none';
+    }
     
     console.log('批量分析结果显示完成');
 }
@@ -905,8 +1092,114 @@ function clearImport() {
     document.getElementById('file-name').textContent = '未选择文件';
     document.getElementById('import-btn').disabled = true;
     document.getElementById('import-preview').style.display = 'none';
-    document.getElementById('csv-underlying-price').value = '';
-    document.getElementById('csv-days-to-expiry').value = '';
+    document.getElementById('shared-underlying-price').value = '';
+    document.getElementById('shared-days-to-expiry').value = '';
+}
+
+// 清除所有数据（包括离线导入和API数据）
+function clearAllData() {
+    console.log('开始清除所有数据...');
+    
+    // 清空导入的期权数据
+    importedOptions = [];
+    window.callOptions = [];
+    window.putOptions = [];
+    
+    // 清空CSV相关
+    document.getElementById('csv-file').value = '';
+    document.getElementById('file-name').textContent = '未选择文件';
+    document.getElementById('import-btn').disabled = true;
+    
+    // 清空API状态
+    const apiStatus = document.getElementById('api-status');
+    if (apiStatus) {
+        apiStatus.style.display = 'none';
+    }
+    
+    // 清空预览区域
+    const importPreview = document.getElementById('import-preview');
+    if (importPreview) {
+        importPreview.style.display = 'none';
+    }
+    
+    // 清空结果区域
+    const resultsSection = document.getElementById('results-section');
+    if (resultsSection) {
+        resultsSection.style.display = 'none';
+    }
+    
+    // 清空批量分析表格
+    const batchTable = document.getElementById('batch-table');
+    if (batchTable) {
+        batchTable.innerHTML = '';
+    }
+    
+    // 重置共享参数为默认值
+    document.getElementById('shared-underlying-price').value = '340.00';
+    document.getElementById('shared-days-to-expiry').value = '13';
+    
+    // 清空自动检测信息
+    const autoInfo = document.getElementById('auto-info');
+    if (autoInfo) {
+        autoInfo.style.display = 'none';
+    }
+    
+    // 清空自动过滤信息
+    const autoFilterInfo = document.getElementById('auto-filter-info');
+    if (autoFilterInfo) {
+        autoFilterInfo.style.display = 'none';
+    }
+    
+    // 清空分析计数
+    const analysisCount = document.getElementById('analysis-count');
+    if (analysisCount) {
+        analysisCount.textContent = '0';
+    }
+    
+    console.log('✅ 所有数据已清除');
+    
+    // 显示成功提示
+    showSuccessMessage('所有数据已清除，可以重新开始分析');
+}
+
+// 显示成功提示消息
+function showSuccessMessage(message) {
+    // 创建提示元素
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 15px 20px;
+        border-radius: 12px;
+        box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+        z-index: 10000;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    `;
+    notification.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+    
+    // 添加到页面
+    document.body.appendChild(notification);
+    
+    // 显示动画
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // 自动隐藏
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
 }
 
 // 改进的突破概率计算函数 - 基于正态分布
@@ -965,6 +1258,13 @@ function calculateRiskAdjustment(underlying_price, iv, T, delta, gamma, option_t
 document.addEventListener('DOMContentLoaded', function() {
     console.log('页面加载完成，开始初始化...');
     
+    // 确保结果区域在页面加载时是隐藏的
+    const resultsSection = document.getElementById('results-section');
+    if (resultsSection) {
+        resultsSection.style.display = 'none';
+        console.log('✅ 结果区域已设置为隐藏状态');
+    }
+    
     // 设置默认值
     setDefaultValues();
     console.log('默认值设置完成');
@@ -981,6 +1281,13 @@ document.addEventListener('DOMContentLoaded', function() {
     setupCSVImport();
     console.log('CSV导入功能设置完成');
     
+    // 绑定清除所有数据按钮事件
+    const clearAllBtn = document.getElementById('clear-all-btn');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', clearAllData);
+        console.log('✅ 清除所有数据按钮事件绑定完成');
+    }
+    
     console.log('所有初始化完成！');
 });
 
@@ -988,25 +1295,25 @@ document.addEventListener('DOMContentLoaded', function() {
 function setDefaultValues() {
     console.log('开始设置默认值...');
     
-    // 只设置CSV导入的默认值（基于您的数据）
-    const csvUnderlyingPrice = document.getElementById('csv-underlying-price');
-    const csvDaysToExpiry = document.getElementById('csv-days-to-expiry');
-    
-    if (csvUnderlyingPrice) {
-        csvUnderlyingPrice.value = '340.00';  // 修正为当前实际价格
-        console.log('✅ CSV标的价格默认值已设置: $340.00');
-    } else {
-        console.warn('⚠️ 未找到CSV标的价格输入框');
-    }
-    
-    if (csvDaysToExpiry) {
-        csvDaysToExpiry.value = '6';  // 修正为实际到期天数
-        console.log('✅ CSV到期天数默认值已设置: 6天');
-    } else {
-        console.warn('⚠️ 未找到CSV到期天数输入框');
-    }
-    
-    console.log('CSV导入默认值设置完成');
+            // 设置共享参数的默认值
+        const sharedUnderlyingPrice = document.getElementById('shared-underlying-price');
+        const sharedDaysToExpiry = document.getElementById('shared-days-to-expiry');
+        
+        if (sharedUnderlyingPrice) {
+            sharedUnderlyingPrice.value = '340.00';  // 修正为当前实际价格
+            console.log('✅ 共享标的价格默认值已设置: $340.00');
+        } else {
+            console.warn('⚠️ 未找到共享标的价格输入框');
+        }
+        
+        if (sharedDaysToExpiry) {
+            sharedDaysToExpiry.value = '6';  // 修正为实际到期天数
+            console.log('✅ 共享到期天数默认值已设置: 6天');
+        } else {
+            console.warn('⚠️ 未找到共享到期天数输入框');
+        }
+        
+        console.log('共享参数默认值设置完成');
 }
 
 // 添加输入验证
@@ -1884,7 +2191,76 @@ function showAutoSetInfo(optionType, deltaRange, putCount, callCount) {
     }
     
     infoDiv.innerHTML = infoContent;
+    
+    // 同时更新共享参数区域的Delta过滤系统显示
+    updateDeltaFilterDisplay(putCount, callCount, optionType, deltaRange);
+    
     console.log('自动设置信息显示完成');
+}
+
+// 更新Delta过滤系统显示
+function updateDeltaFilterDisplay(putCount, callCount, optionType, deltaRange) {
+    const autoFilterInfo = document.getElementById('auto-filter-info');
+    const filterDetails = document.getElementById('filter-details');
+    
+    if (autoFilterInfo && filterDetails) {
+        // 显示自动过滤信息区域
+        autoFilterInfo.style.display = 'block';
+        
+        // 生成详细信息内容
+        let detailsContent = '';
+        
+        if (putCount > 0 && callCount > 0) {
+            detailsContent = `
+                <p style="margin: 5px 0; font-weight: 500;">
+                    检测到 <span style="color: #e53e3e; font-weight: 600;">${putCount} 个看跌期权</span>, 
+                    <span style="color: #38a169; font-weight: 600;">${callCount} 个看涨期权</span>
+                </p>
+                <p style="margin: 5px 0; font-weight: 500;">
+                    主要类型: <span style="color: #0066cc; font-weight: 600;">${optionType}</span>
+                </p>
+                <p style="margin: 5px 0; font-weight: 500;">
+                    自动设置Delta范围: <span style="color: #0066cc; font-weight: 600;">${deltaRange}</span>
+                </p>
+                <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #666;">
+                    这个范围覆盖了看涨和看跌期权，适合卖方策略，风险相对可控
+                </p>
+            `;
+        } else if (putCount > 0) {
+            detailsContent = `
+                <p style="margin: 5px 0; font-weight: 500;">
+                    检测到 <span style="color: #e53e3e; font-weight: 600;">${putCount} 个看跌期权</span>
+                </p>
+                <p style="margin: 5px 0; font-weight: 500;">
+                    主要类型: <span style="color: #0066cc; font-weight: 600;">${optionType}</span>
+                </p>
+                <p style="margin: 5px 0; font-weight: 500;">
+                    自动设置Delta范围: <span style="color: #0066cc; font-weight: 600;">${deltaRange}</span>
+                </p>
+                <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #666;">
+                    这个范围适合看跌期权卖方策略，风险相对可控
+                </p>
+            `;
+        } else if (callCount > 0) {
+            detailsContent = `
+                <p style="margin: 5px 0; font-weight: 500;">
+                    检测到 <span style="color: #38a169; font-weight: 600;">${callCount} 个看涨期权</span>
+                </p>
+                <p style="margin: 5px 0; font-weight: 500;">
+                    主要类型: <span style="color: #0066cc; font-weight: 600;">${optionType}</span>
+                </p>
+                <p style="margin: 5px 0; font-weight: 500;">
+                    自动设置Delta范围: <span style="color: #0066cc; font-weight: 600;">${deltaRange}</span>
+                </p>
+                <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #666;">
+                    这个范围适合看涨期权卖方策略，风险相对可控
+                </p>
+            `;
+        }
+        
+        filterDetails.innerHTML = detailsContent;
+        console.log('✅ Delta过滤系统显示已更新');
+    }
 }
 
 // 计算单个期权的期望价值(EV)
@@ -2188,6 +2564,12 @@ function calculateAllOptionsEV(options, underlyingPrice, daysToExpiry) {
 function showEVResults(optionsWithEV) {
     console.log('showEVResults被调用，期权数量:', optionsWithEV.length);
     
+    // 验证数据
+    if (!optionsWithEV || optionsWithEV.length === 0) {
+        console.log('没有期权数据，不显示结果');
+        return;
+    }
+    
     // 查找结果容器
     let resultsContainer = document.getElementById('results-section');
     if (!resultsContainer) {
@@ -2411,8 +2793,8 @@ function createRiskDistributionChart(option) {
     }
     
     // 从用户输入获取实际参数
-    const underlyingPriceInput = document.getElementById('csv-underlying-price');
-    const daysToExpiryInput = document.getElementById('csv-days-to-expiry');
+    const underlyingPriceInput = document.getElementById('shared-underlying-price');
+    const daysToExpiryInput = document.getElementById('shared-days-to-expiry');
     
     const underlyingPrice = underlyingPriceInput ? parseFloat(underlyingPriceInput.value) : 340;
     const daysToExpiry = daysToExpiryInput ? parseInt(daysToExpiryInput.value) : 6;
@@ -2532,6 +2914,7 @@ function createRiskDistributionChart(option) {
             const detailsRow = document.createElement('tr');
             detailsRow.className = 'calculation-details-row';
             detailsRow.style.display = 'table-row';
+            detailsRow.id = `details-row-${Date.now()}`; // 添加唯一ID
             
             const detailsCell = document.createElement('td');
             detailsCell.colSpan = 11; // 跨越所有列
@@ -2552,9 +2935,54 @@ function createRiskDistributionChart(option) {
             // 不再隐藏表格行中的金色徽章，保持始终可见
         } else {
             // 如果按钮显示"隐藏计算详情"，则隐藏详情行
-            const detailsRow = canvas.closest('tr').nextElementSibling;
-            if (detailsRow && detailsRow.classList.contains('calculation-details-row')) {
-                detailsRow.remove();
+            // 使用更可靠的查找方式
+            const chartRow = canvas.closest('tr');
+            console.log('🔍 查找详情行:', chartRow);
+            
+            if (chartRow) {
+                // 查找下一个兄弟元素
+                let nextSibling = chartRow.nextElementSibling;
+                let found = false;
+                
+                while (nextSibling) {
+                    console.log('检查兄弟元素:', nextSibling, '类名:', nextSibling.className);
+                    if (nextSibling.classList && nextSibling.classList.contains('calculation-details-row')) {
+                        console.log('✅ 找到详情行，准备删除');
+                        nextSibling.remove();
+                        found = true;
+                        break;
+                    }
+                    nextSibling = nextSibling.nextElementSibling;
+                }
+                
+                if (!found) {
+                    console.log('⚠️ 未找到详情行，尝试其他方法');
+                    // 备用方法：直接查找所有详情行
+                    const allDetailsRows = document.querySelectorAll('.calculation-details-row');
+                    console.log('找到的详情行数量:', allDetailsRows.length);
+                    allDetailsRows.forEach(row => {
+                        console.log('删除详情行:', row);
+                        row.remove();
+                    });
+                }
+                
+                // 额外检查：如果还是没有找到，尝试查找包含风险分析信息的元素
+                if (document.querySelector('.risk-info')) {
+                    console.log('🔍 找到风险分析信息，尝试隐藏');
+                    const riskInfoElements = document.querySelectorAll('.risk-info');
+                    riskInfoElements.forEach(element => {
+                        element.style.display = 'none';
+                    });
+                }
+            }
+            
+            // 最后的安全措施：隐藏所有相关的计算详情
+            const allCalculationDetails = document.querySelectorAll('.calculation-details-cell, .risk-info');
+            if (allCalculationDetails.length > 0) {
+                console.log('🔒 安全措施：隐藏所有计算详情元素');
+                allCalculationDetails.forEach(element => {
+                    element.style.display = 'none';
+                });
             }
             showDetailsButton.textContent = '显示计算详情';
             
@@ -2685,7 +3113,7 @@ function addKeyPriceLines(chart, underlyingPrice, strike, std) {
 // 添加风险分析信息
 function addRiskAnalysisInfo(container, option, underlyingPrice, strike, std, premium) {
     // 获取到期天数
-    const daysToExpiryInput = document.getElementById('csv-days-to-expiry');
+    const daysToExpiryInput = document.getElementById('shared-days-to-expiry');
     const daysToExpiry = daysToExpiryInput ? parseInt(daysToExpiryInput.value) : 6;
     // 移除现有的风险分析信息
     const existingInfo = container.querySelector('.risk-info');
@@ -2861,8 +3289,8 @@ function showEVCalculationDetails(option) {
     closeBtn.onclick = () => modal.remove();
     
     // 获取参数
-    const underlyingPriceInput = document.getElementById('csv-underlying-price');
-    const daysToExpiryInput = document.getElementById('csv-days-to-expiry');
+    const underlyingPriceInput = document.getElementById('shared-underlying-price');
+    const daysToExpiryInput = document.getElementById('shared-days-to-expiry');
     const underlyingPrice = underlyingPriceInput ? parseFloat(underlyingPriceInput.value) : 340;
     const daysToExpiry = daysToExpiryInput ? parseInt(daysToExpiryInput.value) : 6;
     
@@ -3142,6 +3570,10 @@ function updateInputFields(underlyingPrice, daysToExpiry) {
     const autoPrice = document.getElementById('auto-price');
     const autoDays = document.getElementById('auto-days');
     
+    // 同时更新共享参数输入框
+    const sharedUnderlyingPrice = document.getElementById('shared-underlying-price');
+    const sharedDaysToExpiry = document.getElementById('shared-days-to-expiry');
+    
     if (autoInfo && autoPrice && autoDays) {
         // 显示自动信息区域
         autoInfo.style.display = 'block';
@@ -3150,12 +3582,22 @@ function updateInputFields(underlyingPrice, daysToExpiry) {
         if (underlyingPrice) {
             autoPrice.textContent = `$${underlyingPrice.toFixed(2)}`;
             console.log('✅ 自动更新标的价格显示:', underlyingPrice);
+            
+            // 同时更新共享参数输入框
+            if (sharedUnderlyingPrice) {
+                sharedUnderlyingPrice.value = underlyingPrice.toFixed(2);
+            }
         }
         
         // 更新天数信息
         if (daysToExpiry) {
             autoDays.textContent = `${daysToExpiry}天`;
             console.log('✅ 自动更新到期天数显示:', daysToExpiry);
+            
+            // 同时更新共享参数输入框
+            if (sharedDaysToExpiry) {
+                sharedDaysToExpiry.value = daysToExpiry;
+            }
         }
         
         // 添加成功动画效果
@@ -3221,17 +3663,100 @@ async function fetchDataFromAPI() {
             console.log('CSV解析完成，数据行数:', csvData.length);
             console.log('CSV第一行数据示例:', csvData[0]);
             
+            // 添加更详细的CSV结构分析
+            if (csvData.length > 0) {
+                console.log('=== CSV结构详细分析 ===');
+                console.log('CSV数据类型:', typeof csvData[0]);
+                console.log('列名数量:', Object.keys(csvData[0]).length);
+                console.log('所有列名:', Object.keys(csvData[0]));
+                
+                // 检查前几行数据
+                for (let i = 0; i < Math.min(5, csvData.length); i++) {
+                    console.log(`第${i}行数据类型:`, typeof csvData[i]);
+                    console.log(`第${i}行数据:`, csvData[i]);
+                    
+                    // 如果是对象，显示其结构
+                    if (typeof csvData[i] === 'object' && csvData[i] !== null) {
+                        console.log(`第${i}行对象键:`, Object.keys(csvData[i]));
+                        console.log(`第${i}行对象值:`, Object.values(csvData[i]));
+                    }
+                }
+            }
+            
             // 设置默认值
             let underlyingPrice = 340.00; // 默认值
-            let daysToExpiry = 6; // 默认值
+            let daysToExpiry = 13; // 默认值（9月5日到期）
             
             // 处理数据
             const processedData = processCSVData(csvData, underlyingPrice, daysToExpiry);
             importedOptions = processedData;
             
-            // 使用从CSV提取的更新值
-            underlyingPrice = processedData.underlyingPrice || underlyingPrice;
-            daysToExpiry = processedData.daysToExpiry || daysToExpiry;
+            // 从CSV数据中提取标的价格和到期天数
+            if (csvData.length > 1) {
+                const secondLine = csvData[1];
+                console.log('CSV第2行内容:', secondLine);
+                
+                // 检查secondLine的类型和结构
+                if (typeof secondLine === 'object' && secondLine !== null) {
+                    // CSV解析后的对象，查找包含到期信息的字段
+                    const allValues = Object.values(secondLine).join(' ');
+                    console.log('CSV第2行所有值:', allValues);
+                    
+                    // 提取到期天数
+                    const daysMatch = allValues.match(/到期日：.*?(\d+)天到期/);
+                    if (daysMatch) {
+                        daysToExpiry = parseInt(daysMatch[1]);
+                        console.log('✅ 从API CSV提取到到期天数:', daysToExpiry);
+                    }
+                    
+                    // 尝试从第3行数据推断标的价格
+                    if (csvData.length > 2) {
+                        const thirdLine = csvData[2];
+                        console.log('CSV第3行内容:', thirdLine);
+                        
+                        if (typeof thirdLine === 'object' && thirdLine !== null) {
+                            // 查找行权价和Delta字段
+                            const thirdLineValues = Object.values(thirdLine).join(' ');
+                            console.log('CSV第3行所有值:', thirdLineValues);
+                            
+                            // 尝试从看涨期权中找到Delta距离0.5最近的行权价作为标的价格
+                            let bestStrike = null;
+                            let minDeltaDiff = Infinity;
+                            
+                            // 遍历所有CSV数据行，寻找看涨期权
+                            for (let i = 0; i < csvData.length; i++) {
+                                const row = csvData[i];
+                                if (row && row['行权价'] && row['Delta']) {
+                                    const strike = parseFloat(row['行权价']);
+                                    const delta = parseFloat(row['Delta']);
+                                    
+                                    if (!isNaN(strike) && !isNaN(delta) && strike > 100 && strike < 1000 && delta > 0) {
+                                        const deltaDiff = Math.abs(delta - 0.5);
+                                        if (deltaDiff < minDeltaDiff) {
+                                            minDeltaDiff = deltaDiff;
+                                            bestStrike = strike;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if (bestStrike && bestStrike > 200 && bestStrike < 500) {
+                                underlyingPrice = bestStrike;
+                                console.log('✅ 从API CSV看涨期权Delta距离0.5最近的行权价推断标的价格:', underlyingPrice, 'Delta差异:', minDeltaDiff);
+                            } else {
+                                // 如果找不到合适的看涨期权，使用默认值
+                                underlyingPrice = 340.00;
+                                console.log('✅ 使用默认标的价格:', underlyingPrice);
+                            }
+                        }
+                    }
+                } else {
+                    console.warn('CSV第2行不是对象，跳过到期天数提取');
+                }
+            }
+            
+            // 更新共享参数输入框
+            updateInputFields(underlyingPrice, daysToExpiry);
             
             // 直接进行EV分析并显示结果，而不是显示预览
             console.log('开始进行EV分析...');
@@ -3244,15 +3769,27 @@ async function fetchDataFromAPI() {
             
             // 计算所有期权的EV
             const optionsWithEV = processedData.map(option => {
-                const ev = calculateExpectedValue(option, underlyingPrice, daysToExpiry);
-                return { ...option, ev };
-            });
+                try {
+                    const ev = calculateExpectedValue(option, underlyingPrice, daysToExpiry);
+                    console.log(`期权 ${option.type} ${option.strike} EV计算:`, ev);
+                    return { ...option, ev };
+                } catch (error) {
+                    console.error(`期权 ${option.type} ${option.strike} EV计算失败:`, error);
+                    return { ...option, ev: null };
+                }
+            }).filter(option => option.ev !== null); // 过滤掉计算失败的期权
             
             // 按EV排序
             const sortedOptions = optionsWithEV.sort((a, b) => b.ev.expectedValue - a.ev.expectedValue);
             
             // 显示EV分析结果
-            showEVResults(sortedOptions);
+            if (optionsWithEV.length > 0) {
+                showEVResults(sortedOptions);
+                console.log(`✅ 成功显示 ${optionsWithEV.length} 个期权的EV分析结果`);
+            } else {
+                console.warn('⚠️ 没有可显示的期权EV分析结果');
+                showError('期权EV计算失败，请检查数据格式');
+            }
             
             // 确保结果区域可见
             const resultsSection = document.getElementById('results-section');

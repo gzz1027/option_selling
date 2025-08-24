@@ -8,347 +8,754 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f5f5f5;
+        :root {
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary-color: #10b981;
+            --secondary-dark: #059669;
+            --accent-color: #f59e0b;
+            --accent-dark: #d97706;
+            --success-color: #22c55e;
+            --warning-color: #f97316;
+            --danger-color: #ef4444;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --text-light: #9ca3af;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-tertiary: #f3f4f6;
+            --border-color: #e5e7eb;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
         }
-        
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text-primary);
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        
-        h1 {
-            color: #333;
+
+        .header {
             text-align: center;
-            margin-bottom: 10px;
-        }
-        
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-style: italic;
-        }
-        
-        .section {
-            margin-bottom: 30px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            background-color: #fafafa;
-        }
-        
-        .section h2 {
-            color: #444;
-            margin-top: 0;
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 10px;
-        }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
-        }
-        
-        input[type="file"], input[type="number"] {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        
-        .btn {
-            background-color: #007bff;
+            margin-bottom: 40px;
             color: white;
-            padding: 10px 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .data-source-card {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .data-source-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .csv-icon {
+            background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark));
+        }
+
+        .api-icon {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        .upload-section {
+            margin-bottom: 25px;
+        }
+
+        .file-upload {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark));
+            color: white;
             border: none;
-            border-radius: 4px;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
             cursor: pointer;
-            font-size: 16px;
-            margin-right: 10px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-md);
         }
-        
-        .btn:hover {
-            background-color: #0056b3;
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
         }
-        
-        .btn-success {
-            background-color: #28a745;
+
+        .file-name {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
         }
-        
-        .btn-success:hover {
-            background-color: #1e7e34;
+
+        .filter-system {
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            border: 1px solid #a7f3d0;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
         }
-        
-        .btn-warning {
-            background-color: #ffc107;
-            color: #212529;
-        }
-        
-        .btn-warning:hover {
-            background-color: #e0a800;
-        }
-        
-        .filter-section {
-            background-color: #e7f3ff;
-            border-color: #007bff;
-        }
-        
-        .filter-info {
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-            color: #155724;
-            padding: 15px;
-            border-radius: 4px;
+
+        .filter-system h4 {
+            color: var(--secondary-dark);
             margin-bottom: 15px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        
-        .filter-info h3 {
-            margin-top: 0;
-            color: #155724;
+
+        .filter-info {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
         }
-        
-        .filter-controls {
-            display: none;
+
+        .api-form {
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: var(--bg-secondary);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            background: var(--bg-primary);
+        }
+
+        .api-btn {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-md);
+        }
+
+        .api-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .shared-params-section {
+            grid-column: 1 / -1;
+            margin-top: 30px;
+        }
+
+        .shared-params-card {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid rgba(255,255,255,0.2);
+            position: relative;
+        }
+
+        .params-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .params-header h4 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .params-header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .params-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .params-left, .params-right {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .params-left h5, .params-right h5 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .param-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .param-group label {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .param-input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .currency-symbol {
+            position: absolute;
+            left: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            z-index: 1;
+        }
+
+        .unit-text {
+            position: absolute;
+            right: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            z-index: 1;
+        }
+
+        .param-input-group .form-control {
+            padding-left: 25px;
+            padding-right: 35px;
+        }
+
+        .csv-action-section {
+            margin-top: 25px;
+            text-align: center;
+        }
+
+        .filter-system {
+            background: linear-gradient(135deg, #f0f8ff, #e6f3ff);
+            border: 1px solid #b3d9ff;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .filter-info p {
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .filter-rules {
+            list-style: none;
+            padding: 0;
+            margin: 15px 0;
+        }
+
+        .filter-rules li {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 3px solid var(--primary-color);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .filter-note {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 12px;
+            color: #856404;
+            font-size: 0.9rem;
+            font-weight: 500;
             margin-top: 15px;
         }
-        
-        .filter-controls.show {
-            display: block;
-        }
-        
-        .filter-row {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        
-        .filter-row input {
-            width: 120px;
-        }
-        
-        .filter-row label {
-            margin-bottom: 0;
-            min-width: 80px;
-        }
-        
-        .preview-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .preview-table th,
-        .preview-table td {
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            text-align: center;
-        }
-        
-        .preview-table th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-            color: #495057;
-        }
-        
-        .preview-table tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-        
-        .preview-table tr:hover {
-            background-color: #e9ecef;
-        }
-        
-        .import-stats {
+
+        .auto-filter-info {
             margin-top: 20px;
             padding: 15px;
-            background-color: #e7f3ff;
-            border-radius: 4px;
-            border-left: 4px solid #007bff;
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            border: 1px solid #86efac;
+            border-radius: 10px;
         }
-        
-        .import-stats h3 {
-            margin-top: 0;
-            color: #007bff;
-        }
-        
-        .import-stats p {
-            margin: 5px 0;
-            color: #495057;
-        }
-        
-        .error {
-            color: #dc3545;
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
-        }
-        
-        .success {
+
+        .filter-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             color: #155724;
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .filter-status i {
+            color: #28a745;
+            font-size: 1.1rem;
+        }
+
+        .filter-details {
+            color: #155724;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .import-btn {
+            background: linear-gradient(135deg, var(--success-color), #16a34a);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-md);
+            width: 100%;
+        }
+
+        .import-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .auto-info {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 1px solid #fbbf24;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .info-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-item i {
+            color: var(--accent-color);
+        }
+
+        .api-status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .status-loading {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            border: 1px solid #93c5fd;
+            color: #1e40af;
+        }
+
+        .status-success {
+            background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+            border: 1px solid #86efac;
+            color: #166534;
+        }
+
+        .status-error {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+        }
+
+        .import-preview {
+            margin-top: 30px;
+            padding: 25px;
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+            display: none;
+        }
+
+        .preview-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--text-secondary), var(--text-light));
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .results-section {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow-xl);
+            margin-top: 30px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .data-source-card {
+                padding: 20px;
+            }
+            
+            .params-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .shared-params-card {
+                padding: 20px;
+            }
+            
+            .filter-system {
+                padding: 15px;
+            }
+            
+            .filter-rules li {
+                font-size: 0.85rem;
+                padding: 6px 10px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <h1><i class="fas fa-calculator"></i> 期权卖方预期价值(EV)计算器</h1>
-            <p>基于富途希腊字母数据的简化版期权分析工具</p>
+            <h1><i class="fas fa-chart-line"></i> 期权卖方策略量化分析平台</h1>
+            <p>基于富途专业期权数据的智能风险收益评估系统</p>
         </header>
 
         <div class="main-content">
             <!-- CSV导入功能 -->
-            <div class="csv-import-section">
-                <div class="import-card">
-                    <h2><i class="fas fa-file-csv"></i> CSV批量导入</h2>
-                    <p>支持富途导出的期权数据格式，批量分析多个期权</p>
+            <div class="data-source-card">
+                <div class="card-header">
+                    <div class="card-icon csv-icon">
+                        <i class="fas fa-file-csv"></i>
+                    </div>
+                    <div>
+                        <div class="card-title">📁 离线数据导入分析</div>
+                        <div class="card-subtitle">支持富途导出的期权数据格式，为无API权限用户提供离线分析方案</div>
+                    </div>
+                </div>
+                
+                <div class="upload-section">
+                    <div class="file-upload">
+                        <input type="file" id="csv-file" accept=".csv" style="display: none;">
+                        <button type="button" class="upload-btn" id="file-select-btn">
+                            <i class="fas fa-upload"></i> 选择CSV文件
+                        </button>
+                        <span id="file-name" class="file-name">未选择文件</span>
+                    </div>
                     
-                    <div class="import-options">
-                        <div class="file-upload">
-                            <input type="file" id="csv-file" accept=".csv" style="display: none;">
-                            <button type="button" class="upload-btn" id="file-select-btn">
-                                <i class="fas fa-upload"></i> 选择CSV文件
-                            </button>
-                            <span id="file-name" class="file-name">未选择文件</span>
+                </div>
+                
+                <!-- 添加导入并分析按钮到CSV模块 -->
+                <div class="csv-action-section">
+                    <button class="import-btn" id="import-btn">
+                        <i class="fas fa-play"></i> 导入并分析
+                    </button>
+                </div>
+            </div>
+
+            <!-- API数据获取功能 -->
+            <div class="data-source-card">
+                <div class="card-header">
+                    <div class="card-icon api-icon">
+                        <i class="fas fa-cloud-download-alt"></i>
+                    </div>
+                    <div>
+                        <div class="card-title">⚡ 实时市场数据引擎</div>
+                        <div class="card-subtitle">实时获取最新期权数据，动态市场分析</div>
+                    </div>
+                </div>
+                
+                <div class="api-form">
+                    <div class="form-group">
+                        <label for="stock-code">股票代码</label>
+                        <select id="stock-code" class="form-control">
+                            <optgroup label="美股 (US)">
+                                <option value="US.TSLA">特斯拉 (Tesla) - US.TSLA</option>
+                                <option value="US.NVDA">英伟达 (NVIDIA) - US.NVDA</option>
+                                <option value="US.AAPL">苹果 (Apple) - US.AAPL</option>
+                                <option value="US.AMZN">亚马逊 (Amazon) - US.AMZN</option>
+                                <option value="US.PDD">拼多多 (Pinduoduo) - US.PDD</option>
+                                <option value="US.MSFT">微软 (Microsoft) - US.MSFT</option>
+                                <option value="US.META">Meta - US.META</option>
+                                <option value="US.GOOGL">谷歌 (Google) - US.GOOGL</option>
+                            </optgroup>
+                            <optgroup label="港股 (HK)">
+                                <option value="HK.00700">腾讯控股 (Tencent) - HK.00700</option>
+                                <option value="HK.09988">阿里巴巴 (Alibaba) - HK.09988</option>
+                                <option value="HK.03690">美团 (Meituan) - HK.03690</option>
+                                <option value="HK.01810">小米 (Xiaomi) - HK.01810</option>
+                                <option value="HK.09618">京东 (JD) - HK.09618</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="target-date">目标到期日期</label>
+                        <input type="date" id="target-date" value="2025-08-22" class="form-control">
+                    </div>
+                    
+                    <button class="api-btn" id="api-btn">
+                        <i class="fas fa-cloud-download-alt"></i> 获取数据
+                    </button>
+                    
+                    <div class="api-status" id="api-status">
+                        <span id="status-text"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 共享参数和过滤设置区域 -->
+        <div class="shared-params-section">
+            <div class="shared-params-card">
+                <div class="params-header">
+                    <h4><i class="fas fa-sliders-h"></i> 策略参数配置中心</h4>
+                    <p>核心参数配置与智能过滤系统，为所有期权策略分析提供统一基准</p>
+                </div>
+                
+                <!-- 清除按钮放在策略参数配置中心卡片的左下角 -->
+                <div class="clear-btn-container" style="position: absolute; bottom: 20px; left: 20px; z-index: 10;">
+                    <button class="clear-all-btn" id="clear-all-btn" style="font-size: 0.85rem; padding: 8px 16px;">
+                        <i class="fas fa-trash-alt"></i> 清除所有数据
+                    </button>
+                </div>
+                
+                <div class="params-content">
+                    <!-- 基础参数设置 -->
+                    <div class="params-left">
+                        <h5><i class="fas fa-sliders-h"></i> 基础参数</h5>
+                        
+                        <div class="param-group">
+                            <label for="shared-underlying-price">标的当前价格</label>
+                            <div class="param-input-group">
+                                <span class="currency-symbol">$</span>
+                                <input type="number" id="shared-underlying-price" class="form-control" value="340.00" step="0.01" min="0">
+                            </div>
                         </div>
                         
-                        <div class="auto-info" id="auto-info" style="display: none;">
+                        <div class="param-group">
+                            <label for="shared-days-to-expiry">剩余到期天数</label>
+                            <div class="param-input-group">
+                                <input type="number" id="shared-days-to-expiry" class="form-control" value="6" min="1" max="365">
+                                <span class="unit-text">天</span>
+                            </div>
+                        </div>
+                        
+                        <div class="auto-info" id="auto-info">
                             <div class="info-item">
                                 <i class="fas fa-chart-line"></i>
-                                <span>标的当前价格: <strong id="auto-price">--</strong></span>
+                                <span>自动检测: <strong id="auto-price">--</strong></span>
                             </div>
                             <div class="info-item">
                                 <i class="fas fa-calendar-alt"></i>
-                                <span>剩余到期天数: <strong id="auto-days">--</strong></span>
+                                <span>自动检测: <strong id="auto-days">--</strong></span>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- Delta过滤系统 -->
+                    <div class="params-right">
+                        <h5><i class="fas fa-filter"></i> Delta过滤系统</h5>
                         
-                        <!-- 过滤系统 -->
-                        <div class="filter-system" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
-                            <h4 style="margin-bottom: 15px; color: #495057;">
-                                <i class="fas fa-filter"></i> Delta过滤系统
-                            </h4>
-                            <div class="filter-content" style="text-align: center;">
-                                <div class="filter-info" style="margin-bottom: 15px;">
-                                    <p style="color: #6c757d; font-size: 0.9rem; margin: 5px 0;">
-                                        系统会自动识别期权类型并设置合适的Delta范围：<br>
-                                        • 看涨期权：Delta范围 0.01 到 0.4<br>
-                                        • 看跌期权：Delta范围 -0.4 到 -0.01<br>
-                                        • 混合期权：Delta范围 -0.4 到 0.4<br>
-                                        这个范围适合卖方策略，风险相对可控
-                                    </p>
-                                </div>
-                                <!-- 自动设置信息将在这里显示 -->
-                            </div>
-                        </div>
-                        
-                        <div class="divider" style="margin: 20px 0; text-align: center; color: #666;">
-                            <span style="background: white; padding: 0 10px;">或者</span>
-                            <hr style="margin-top: -10px; border: 1px solid #ddd;">
-                        </div>
-                        
-                        <!-- API数据获取功能 -->
-                        <div class="api-section">
-                            <h4 style="margin-bottom: 15px; color: #495057;">
-                                <i class="fas fa-cloud-download-alt"></i> 通过API获取数据
-                            </h4>
-                            <div class="api-params">
-                                                            <div class="form-group">
-                                <label for="stock-code">股票代码:</label>
-                                <select id="stock-code" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
-                                    <optgroup label="美股 (US)">
-                                        <option value="US.TSLA">特斯拉 (Tesla) - US.TSLA</option>
-                                        <option value="US.NVDA">英伟达 (NVIDIA) - US.NVDA</option>
-                                        <option value="US.AAPL">苹果 (Apple) - US.AAPL</option>
-                                        <option value="US.AMZN">亚马逊 (Amazon) - US.AMZN</option>
-                                        <option value="US.PDD">拼多多 (Pinduoduo) - US.PDD</option>
-                                        <option value="US.MSFT">微软 (Microsoft) - US.MSFT</option>
-                                        <option value="US.META">Meta - US.META</option>
-                                        <option value="US.GOOGL">谷歌 (Google) - US.GOOGL</option>
-                                    </optgroup>
-                                    <optgroup label="港股 (HK)">
-                                        <option value="HK.00700">腾讯控股 (Tencent) - HK.00700</option>
-                                        <option value="HK.09988">阿里巴巴 (Alibaba) - HK.09988</option>
-                                        <option value="HK.03690">美团 (Meituan) - HK.03690</option>
-                                        <option value="HK.01810">小米 (Xiaomi) - HK.01810</option>
-                                        <option value="HK.09618">京东 (JD) - HK.09618</option>
-                                    </optgroup>
-                                </select>
-                            </div>
-                                <div class="form-group">
-                                    <label for="target-date">目标到期日期:</label>
-                                    <input type="date" id="target-date" value="2025-08-22" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                </div>
-                                <div class="api-status" id="api-status" style="display: none; margin-top: 10px; padding: 10px; border-radius: 4px;">
-                                    <span id="status-text"></span>
-                                </div>
-                            </div>
-                            <button class="api-btn" id="api-btn" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; width: 100%;">
-                                <i class="fas fa-cloud-download-alt"></i> 通过API获取数据
-                            </button>
-                        </div>
-                        
-                        <button class="import-btn" id="import-btn" style="background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); cursor: pointer; opacity: 1;">
-                            <i class="fas fa-play"></i> 导入并分析
-                        </button>
-                        
-                        <div class="import-preview" id="import-preview" style="display: none;">
-                            <h3>导入预览</h3>
-                            <div class="preview-content" id="preview-content"></div>
-                            
-                            <!-- 添加数据验证部分 -->
-                            <div class="data-validation" id="data-validation" style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border: 1px solid #b3d9ff;">
-                                <h4 style="color: #0066cc; margin-bottom: 10px;">🔍 数据验证</h4>
-                                <div id="validation-content"></div>
+                        <div class="filter-system">
+                            <div class="filter-info">
+                                <p><strong>系统会自动识别期权类型并设置合适的Delta范围：</strong></p>
+                                <ul class="filter-rules">
+                                    <li>看涨期权：Delta范围 0.01 到 0.4</li>
+                                    <li>看跌期权：Delta范围 -0.4 到 -0.01</li>
+                                    <li>混合期权：Delta范围 -0.4 到 0.4</li>
+                                </ul>
+                                <p class="filter-note">这个范围适合卖方策略，风险相对可控</p>
                             </div>
                             
-                            <div class="preview-actions">
-                                <button class="analyze-all-btn" onclick="analyzeAllOptions()">
-                                    <i class="fas fa-chart-line"></i> 批量分析所有期权
-                                </button>
-                                <button class="clear-import-btn" onclick="clearImport()">
-                                    <i class="fas fa-trash"></i> 清空导入
-                                </button>
+                            <!-- 自动设置结果显示区域 -->
+                            <div class="auto-filter-info" id="auto-filter-info" style="display: none;">
+                                <div class="filter-status">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>自动设置完成!</span>
+                                </div>
+                                <div class="filter-details" id="filter-details">
+                                    <!-- 这里会显示自动检测的过滤设置 -->
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- 结果显示 -->
-            <div class="results-section" id="results-section" style="display: none;">
-                <div class="results-card">
-                    <h2><i class="fas fa-chart-line"></i> 批量分析结果</h2>
-                    <div class="batch-results">
-                        <div class="batch-summary">
-                            <h3>📊 分析汇总</h3>
-                            <p>共分析了 <span id="analysis-count">0</span> 个期权</p>
-                        </div>
-                        <div class="batch-table" id="batch-table"></div>
+        <!-- 导入预览 -->
+        <div class="import-preview" id="import-preview">
+            <h3>导入预览</h3>
+            <div class="preview-content" id="preview-content"></div>
+            
+            <!-- 数据验证部分 -->
+            <div class="data-validation" id="data-validation" style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border: 1px solid #b3d9ff;">
+                <h4 style="color: #0066cc; margin-bottom: 10px;">🔍 数据验证</h4>
+                <div id="validation-content"></div>
+            </div>
+            
+            <div class="preview-actions">
+                <button class="btn-secondary analyze-all-btn" onclick="analyzeAllOptions()">
+                    <i class="fas fa-chart-line"></i> 批量分析所有期权
+                </button>
+                <button class="btn-secondary clear-import-btn" onclick="clearImport()">
+                    <i class="fas fa-trash"></i> 清空导入
+                </button>
+            </div>
+        </div>
+
+        <!-- 结果显示 -->
+        <div class="results-section" id="results-section" style="display: none;">
+            <div class="results-card">
+                <h2><i class="fas fa-chart-line"></i> 批量分析结果</h2>
+                <div class="batch-results">
+                    <div class="batch-summary">
+                        <h3>📊 分析汇总</h3>
+                        <p>共分析了 <span id="analysis-count">0</span> 个期权</p>
                     </div>
+                    <div class="batch-table" id="batch-table"></div>
                 </div>
             </div>
         </div>
