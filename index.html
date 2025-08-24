@@ -664,32 +664,16 @@
                 <div class="params-content">
                     <!-- 基础参数设置 -->
                     <div class="params-left">
-                        <h5><i class="fas fa-sliders-h"></i> 基础参数</h5>
-                        
-                        <div class="param-group">
-                            <label for="shared-underlying-price">标的当前价格</label>
-                            <div class="param-input-group">
-                                <span class="currency-symbol">$</span>
-                                <input type="number" id="shared-underlying-price" class="form-control" value="340.00" step="0.01" min="0">
-                            </div>
-                        </div>
-                        
-                        <div class="param-group">
-                            <label for="shared-days-to-expiry">剩余到期天数</label>
-                            <div class="param-input-group">
-                                <input type="number" id="shared-days-to-expiry" class="form-control" value="6" min="1" max="365">
-                                <span class="unit-text">天</span>
-                            </div>
-                        </div>
+                        <h5><i class="fas fa-sliders-h"></i> 市场数据</h5>
                         
                         <div class="auto-info" id="auto-info">
                             <div class="info-item">
                                 <i class="fas fa-chart-line"></i>
-                                <span>自动检测: <strong id="auto-price">--</strong></span>
+                                <span>标的价格: <strong id="auto-price">--</strong></span>
                             </div>
                             <div class="info-item">
                                 <i class="fas fa-calendar-alt"></i>
-                                <span>自动检测: <strong id="auto-days">--</strong></span>
+                                <span>剩余天数: <strong id="auto-days">--</strong></span>
                             </div>
                         </div>
                     </div>

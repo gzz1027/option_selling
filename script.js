@@ -298,63 +298,161 @@ function processCSVData(csvData, underlyingPrice, daysToExpiry) {
             const secondLine = lines[1];
             console.log('CSV第2行内容:', secondLine);
             
-            // 提取到期天数
-            const daysMatch = secondLine.match(/到期日：.*?(\d+)天到期/);
-            if (daysMatch) {
-                csvDaysToExpiry = parseInt(daysMatch[1]);
-                console.log('✅ 从CSV提取到到期天数:', csvDaysToExpiry);
+            // 改进的到期天数提取 - 支持多种格式
+            const daysPatterns = [
+                /到期日：.*?(\d+)天到期/,
+                /(\d+)天到期/,
+                /到期.*?(\d+)天/,
+                /(\d+)天/
+            ];
+            
+            for (const pattern of daysPatterns) {
+                const daysMatch = secondLine.match(pattern);
+                if (daysMatch) {
+                    csvDaysToExpiry = parseInt(daysMatch[1]);
+                    console.log('✅ 从CSV提取到到期天数:', csvDaysToExpiry, '使用模式:', pattern);
+                    break;
+                }
             }
             
-                    // 尝试从第3行数据推断标的价格
+            // 改进的标的价格检测逻辑
             if (lines.length > 2) {
+                console.log('开始检测标的价格...');
+                
+                // 方法1：从第3行数据推断（如果格式匹配）
                 const thirdLine = lines[2];
                 const values = thirdLine.split(',').map(v => v.replace(/"/g, '').trim());
                 
-                // 从行权价和Delta推断标的价格
                 if (values.length >= 24) {
                     const strike = parseFloat(values[14]);
                     const delta = parseFloat(values[23]);
                     
-                    if (strike > 0 && Math.abs(delta) > 0.4 && Math.abs(delta) < 0.6) {
-                        // Delta接近0.5的行权价通常接近标的价格
+                    if (strike > 0 && Math.abs(delta) > 0.3 && Math.abs(delta) < 0.7) {
                         csvUnderlyingPrice = strike;
-                        console.log('✅ 从CSV推断标的价格:', csvUnderlyingPrice);
+                        console.log('✅ 方法1成功：从第3行数据推断标的价格:', csvUnderlyingPrice);
                     }
                 }
                 
-                // 如果上面的方法失败，尝试从看涨期权中找到Delta距离0.5最近的行权价
+                // 方法2：基于Delta=0.5上下期权的加权策略
                 if (!csvUnderlyingPrice || csvUnderlyingPrice === underlyingPrice) {
-                    // 从看涨期权数据中找到Delta距离0.5最近的行权价
-                    let bestStrike = null;
-                    let minDeltaDiff = Infinity;
+                    console.log('开始使用Delta=0.5加权策略估算标的价格...');
                     
+                    // 收集所有看涨期权的Delta和行权价数据
+                    const callOptionsData = [];
                     for (let i = 0; i < csvData.length; i++) {
                         const row = csvData[i];
                         if (row && row['行权价'] && row['Delta']) {
                             const strike = parseFloat(row['行权价']);
                             const delta = parseFloat(row['Delta']);
                             
-                            if (!isNaN(strike) && !isNaN(delta) && strike > 100 && strike < 1000 && delta > 0) {
-                                const deltaDiff = Math.abs(delta - 0.5);
-                                if (deltaDiff < minDeltaDiff) {
-                                    minDeltaDiff = deltaDiff;
-                                    bestStrike = strike;
-                                }
+                            if (!isNaN(strike) && !isNaN(delta) && strike > 50 && strike < 2000 && delta > 0) {
+                                callOptionsData.push({ strike, delta });
                             }
                         }
                     }
                     
-                    if (bestStrike && bestStrike > 200 && bestStrike < 500) {
-                        csvUnderlyingPrice = bestStrike;
-                        console.log('✅ 从看涨期权Delta距离0.5最近的行权价推断标的价格:', csvUnderlyingPrice, 'Delta差异:', minDeltaDiff);
+                    if (callOptionsData.length > 0) {
+                        console.log(`找到 ${callOptionsData.length} 个看涨期权数据点`);
+                        
+                        // 按Delta排序
+                        callOptionsData.sort((a, b) => a.delta - b.delta);
+                        
+                        // 寻找Delta=0.5上下最近的期权
+                        let upperOption = null;  // Delta > 0.5
+                        let lowerOption = null;  // Delta < 0.5
+                        
+                        // 找到Delta > 0.5的最小值
+                        for (const option of callOptionsData) {
+                            if (option.delta > 0.5) {
+                                upperOption = option;
+                                break;
+                            }
+                        }
+                        
+                        // 找到Delta < 0.5的最大值
+                        for (let i = callOptionsData.length - 1; i >= 0; i--) {
+                            if (callOptionsData[i].delta < 0.5) {
+                                lowerOption = callOptionsData[i];
+                                break;
+                            }
+                        }
+                        
+                        console.log('Delta=0.5上下期权:', {
+                            upper: upperOption ? `Delta=${upperOption.delta.toFixed(3)}, Strike=${upperOption.strike}` : '无',
+                            lower: lowerOption ? `Delta=${lowerOption.delta.toFixed(3)}, Strike=${lowerOption.strike}` : '无'
+                        });
+                        
+                        // 如果找到了上下期权，进行加权计算
+                        if (upperOption && lowerOption) {
+                            // 计算权重：Delta越接近0.5，权重越大
+                            const upperWeight = 1 / Math.abs(upperOption.delta - 0.5);
+                            const lowerWeight = 1 / Math.abs(lowerOption.delta - 0.5);
+                            const totalWeight = upperWeight + lowerWeight;
+                            
+                            // 加权平均
+                            csvUnderlyingPrice = (upperOption.strike * upperWeight + lowerOption.strike * lowerWeight) / totalWeight;
+                            
+                            console.log('✅ Delta加权策略成功：', {
+                                upperStrike: upperOption.strike,
+                                upperDelta: upperOption.delta,
+                                upperWeight: upperWeight.toFixed(4),
+                                lowerStrike: lowerOption.strike,
+                                lowerDelta: lowerOption.delta,
+                                lowerWeight: lowerWeight.toFixed(4),
+                                totalWeight: totalWeight.toFixed(4),
+                                weightedPrice: csvUnderlyingPrice.toFixed(2)
+                            });
+                            
+
+                            
+                        } else if (upperOption || lowerOption) {
+                            // 如果只找到一个，直接使用
+                            const option = upperOption || lowerOption;
+                            csvUnderlyingPrice = option.strike;
+                            console.log('✅ 使用单个Delta接近0.5的期权行权价:', csvUnderlyingPrice, 'Delta:', option.delta);
+                        } else {
+                            console.log('未找到Delta接近0.5的期权，尝试方法3...');
+                            
+                            // 方法3：从所有期权的中间行权价推断
+                            const strikes = callOptionsData.map(opt => opt.strike);
+                            strikes.sort((a, b) => a - b);
+                            const midIndex = Math.floor(strikes.length / 2);
+                            csvUnderlyingPrice = strikes[midIndex];
+                            console.log('✅ 方法3成功：从中间行权价推断标的价格:', csvUnderlyingPrice, '可用行权价数量:', strikes.length);
+                        }
+                    } else {
+                        console.log('未找到看涨期权数据，尝试方法3...');
+                        
+                        // 方法3：从所有期权的中间行权价推断
+                        const strikes = [];
+                        for (let i = 0; i < csvData.length; i++) {
+                            const row = csvData[i];
+                            if (row && row['行权价']) {
+                                const strike = parseFloat(row['行权价']);
+                                if (!isNaN(strike) && strike > 50 && strike < 2000) {
+                                    strikes.push(strike);
+                                }
+                            }
+                        }
+                        
+                        if (strikes.length > 0) {
+                            strikes.sort((a, b) => a - b);
+                            const midIndex = Math.floor(strikes.length / 2);
+                            csvUnderlyingPrice = strikes[midIndex];
+                            console.log('✅ 方法3成功：从中间行权价推断标的价格:', csvUnderlyingPrice, '可用行权价数量:', strikes.length);
+                        }
                     }
                 }
             }
         }
     }
     
-    // 自动更新输入框
-    updateInputFields(csvUnderlyingPrice, csvDaysToExpiry);
+                // 更新全局变量
+            window.currentUnderlyingPrice = csvUnderlyingPrice;
+            window.currentDaysToExpiry = csvDaysToExpiry;
+            
+            // 更新显示信息
+            updateInputFields(csvUnderlyingPrice, csvDaysToExpiry);
     
     // 使用从CSV提取的值
     underlyingPrice = csvUnderlyingPrice;
@@ -869,7 +967,10 @@ function analyzeAllOptions() {
     }
     
     // 显示批量分析结果
-            showBatchAnalysisResults(importedOptions, parseFloat(document.getElementById('shared-underlying-price').value), parseInt(document.getElementById('shared-days-to-expiry').value));
+    // 由于删除了输入框，使用全局变量或默认值
+    const underlyingPrice = window.currentUnderlyingPrice || 340;
+    const daysToExpiry = window.currentDaysToExpiry || 6;
+    showBatchAnalysisResults(importedOptions, underlyingPrice, daysToExpiry);
 }
 
 // 显示批量分析结果
@@ -1092,8 +1193,10 @@ function clearImport() {
     document.getElementById('file-name').textContent = '未选择文件';
     document.getElementById('import-btn').disabled = true;
     document.getElementById('import-preview').style.display = 'none';
-    document.getElementById('shared-underlying-price').value = '';
-    document.getElementById('shared-days-to-expiry').value = '';
+    
+    // 清空全局变量
+    window.currentUnderlyingPrice = null;
+    window.currentDaysToExpiry = null;
 }
 
 // 清除所有数据（包括离线导入和API数据）
@@ -1134,9 +1237,8 @@ function clearAllData() {
         batchTable.innerHTML = '';
     }
     
-    // 重置共享参数为默认值
-    document.getElementById('shared-underlying-price').value = '340.00';
-    document.getElementById('shared-days-to-expiry').value = '13';
+    // 由于删除了输入框，不再重置这些值
+    // 系统将通过CSV导入或API获取自动检测这些值
     
     // 清空自动检测信息
     const autoInfo = document.getElementById('auto-info');
@@ -1265,6 +1367,11 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ 结果区域已设置为隐藏状态');
     }
     
+    // 初始化全局变量
+    window.currentUnderlyingPrice = 340;
+    window.currentDaysToExpiry = 6;
+    console.log('全局变量初始化完成');
+    
     // 设置默认值
     setDefaultValues();
     console.log('默认值设置完成');
@@ -1295,25 +1402,9 @@ document.addEventListener('DOMContentLoaded', function() {
 function setDefaultValues() {
     console.log('开始设置默认值...');
     
-            // 设置共享参数的默认值
-        const sharedUnderlyingPrice = document.getElementById('shared-underlying-price');
-        const sharedDaysToExpiry = document.getElementById('shared-days-to-expiry');
-        
-        if (sharedUnderlyingPrice) {
-            sharedUnderlyingPrice.value = '340.00';  // 修正为当前实际价格
-            console.log('✅ 共享标的价格默认值已设置: $340.00');
-        } else {
-            console.warn('⚠️ 未找到共享标的价格输入框');
-        }
-        
-        if (sharedDaysToExpiry) {
-            sharedDaysToExpiry.value = '6';  // 修正为实际到期天数
-            console.log('✅ 共享到期天数默认值已设置: 6天');
-        } else {
-            console.warn('⚠️ 未找到共享到期天数输入框');
-        }
-        
-        console.log('共享参数默认值设置完成');
+    // 由于删除了输入框，这里不再设置默认值
+    // 系统将通过CSV导入或API获取自动检测这些值
+    console.log('基础参数输入框已删除，系统将自动检测标的价格和到期天数');
 }
 
 // 添加输入验证
@@ -2792,12 +2883,10 @@ function createRiskDistributionChart(option) {
         return;
     }
     
-    // 从用户输入获取实际参数
-    const underlyingPriceInput = document.getElementById('shared-underlying-price');
-    const daysToExpiryInput = document.getElementById('shared-days-to-expiry');
-    
-    const underlyingPrice = underlyingPriceInput ? parseFloat(underlyingPriceInput.value) : 340;
-    const daysToExpiry = daysToExpiryInput ? parseInt(daysToExpiryInput.value) : 6;
+    // 由于删除了输入框，使用全局变量或默认值
+    // 这些值应该从CSV导入或API获取时设置
+    const underlyingPrice = window.currentUnderlyingPrice || 340;
+    const daysToExpiry = window.currentDaysToExpiry || 6;
     
     const strike = option.strike;
     const premium = option.midPrice;
@@ -3113,8 +3202,8 @@ function addKeyPriceLines(chart, underlyingPrice, strike, std) {
 // 添加风险分析信息
 function addRiskAnalysisInfo(container, option, underlyingPrice, strike, std, premium) {
     // 获取到期天数
-    const daysToExpiryInput = document.getElementById('shared-days-to-expiry');
-    const daysToExpiry = daysToExpiryInput ? parseInt(daysToExpiryInput.value) : 6;
+    // 由于删除了输入框，使用全局变量或默认值
+    const daysToExpiry = window.currentDaysToExpiry || 6;
     // 移除现有的风险分析信息
     const existingInfo = container.querySelector('.risk-info');
     if (existingInfo) {
@@ -3289,10 +3378,9 @@ function showEVCalculationDetails(option) {
     closeBtn.onclick = () => modal.remove();
     
     // 获取参数
-    const underlyingPriceInput = document.getElementById('shared-underlying-price');
-    const daysToExpiryInput = document.getElementById('shared-days-to-expiry');
-    const underlyingPrice = underlyingPriceInput ? parseFloat(underlyingPriceInput.value) : 340;
-    const daysToExpiry = daysToExpiryInput ? parseInt(daysToExpiryInput.value) : 6;
+    // 由于删除了输入框，使用全局变量或默认值
+    const underlyingPrice = window.currentUnderlyingPrice || 340;
+    const daysToExpiry = window.currentDaysToExpiry || 6;
     
     // 计算过程
     const deltaProb = Math.abs(option.delta);
@@ -3570,10 +3658,6 @@ function updateInputFields(underlyingPrice, daysToExpiry) {
     const autoPrice = document.getElementById('auto-price');
     const autoDays = document.getElementById('auto-days');
     
-    // 同时更新共享参数输入框
-    const sharedUnderlyingPrice = document.getElementById('shared-underlying-price');
-    const sharedDaysToExpiry = document.getElementById('shared-days-to-expiry');
-    
     if (autoInfo && autoPrice && autoDays) {
         // 显示自动信息区域
         autoInfo.style.display = 'block';
@@ -3582,23 +3666,36 @@ function updateInputFields(underlyingPrice, daysToExpiry) {
         if (underlyingPrice) {
             autoPrice.textContent = `$${underlyingPrice.toFixed(2)}`;
             console.log('✅ 自动更新标的价格显示:', underlyingPrice);
-            
-            // 同时更新共享参数输入框
-            if (sharedUnderlyingPrice) {
-                sharedUnderlyingPrice.value = underlyingPrice.toFixed(2);
-            }
         }
         
         // 更新天数信息
         if (daysToExpiry) {
             autoDays.textContent = `${daysToExpiry}天`;
             console.log('✅ 自动更新到期天数显示:', daysToExpiry);
-            
-            // 同时更新共享参数输入框
-            if (sharedDaysToExpiry) {
-                sharedDaysToExpiry.value = daysToExpiry;
-            }
         }
+        
+        // 添加检测方法说明
+        const detectionInfo = document.getElementById('detection-info');
+        if (!detectionInfo) {
+            const infoDiv = document.createElement('div');
+            infoDiv.id = 'detection-info';
+            infoDiv.style.cssText = `
+                margin-top: 10px;
+                padding: 8px;
+                background: rgba(255, 255, 255, 0.8);
+                border-radius: 6px;
+                font-size: 0.8rem;
+                color: #666;
+                text-align: center;
+            `;
+            infoDiv.innerHTML = `
+                <i class="fas fa-info-circle"></i> 
+                系统自动检测：标的价格基于Delta=0.5上下期权的加权平均，到期天数从CSV元数据提取
+            `;
+            autoInfo.appendChild(infoDiv);
+        }
+        
+
         
         // 添加成功动画效果
         autoInfo.style.animation = 'fadeInUp 0.5s ease-out';
@@ -3683,12 +3780,12 @@ async function fetchDataFromAPI() {
                 }
             }
             
-            // 设置默认值
-            let underlyingPrice = 340.00; // 默认值
-            let daysToExpiry = 13; // 默认值（9月5日到期）
+            // 改进的自动检测逻辑
+            let underlyingPrice = null;
+            let daysToExpiry = null;
             
             // 处理数据
-            const processedData = processCSVData(csvData, underlyingPrice, daysToExpiry);
+            const processedData = processCSVData(csvData, 340.00, 13); // 临时使用默认值
             importedOptions = processedData;
             
             // 从CSV数据中提取标的价格和到期天数
@@ -3702,51 +3799,148 @@ async function fetchDataFromAPI() {
                     const allValues = Object.values(secondLine).join(' ');
                     console.log('CSV第2行所有值:', allValues);
                     
-                    // 提取到期天数
-                    const daysMatch = allValues.match(/到期日：.*?(\d+)天到期/);
-                    if (daysMatch) {
-                        daysToExpiry = parseInt(daysMatch[1]);
-                        console.log('✅ 从API CSV提取到到期天数:', daysToExpiry);
+                    // 改进的到期天数提取 - 支持多种格式
+                    const daysPatterns = [
+                        /到期日：.*?(\d+)天到期/,
+                        /(\d+)天到期/,
+                        /到期.*?(\d+)天/,
+                        /(\d+)天/
+                    ];
+                    
+                    for (const pattern of daysPatterns) {
+                        const daysMatch = allValues.match(pattern);
+                        if (daysMatch) {
+                            daysToExpiry = parseInt(daysMatch[1]);
+                            console.log('✅ 从API CSV提取到到期天数:', daysToExpiry, '使用模式:', pattern);
+                            break;
+                        }
                     }
                     
-                    // 尝试从第3行数据推断标的价格
+                    // 改进的标的价格检测逻辑
                     if (csvData.length > 2) {
-                        const thirdLine = csvData[2];
-                        console.log('CSV第3行内容:', thirdLine);
+                        console.log('开始检测标的价格...');
                         
-                        if (typeof thirdLine === 'object' && thirdLine !== null) {
-                            // 查找行权价和Delta字段
-                            const thirdLineValues = Object.values(thirdLine).join(' ');
-                            console.log('CSV第3行所有值:', thirdLineValues);
+                        // 方法1：基于Delta=0.5上下期权的加权策略
+                        console.log('开始使用Delta=0.5加权策略估算标的价格...');
+                        
+                        // 收集所有看涨期权的Delta和行权价数据
+                        const callOptionsData = [];
+                        for (let i = 0; i < csvData.length; i++) {
+                            const row = csvData[i];
+                            if (row && row['行权价'] && row['Delta']) {
+                                const strike = parseFloat(row['行权价']);
+                                const delta = parseFloat(row['Delta']);
+                                
+                                if (!isNaN(strike) && !isNaN(delta) && strike > 50 && strike < 2000 && delta > 0) {
+                                    callOptionsData.push({ strike, delta });
+                                }
+                            }
+                        }
+                        
+                        if (callOptionsData.length > 0) {
+                            console.log(`找到 ${callOptionsData.length} 个看涨期权数据点`);
                             
-                            // 尝试从看涨期权中找到Delta距离0.5最近的行权价作为标的价格
-                            let bestStrike = null;
-                            let minDeltaDiff = Infinity;
+                            // 按Delta排序
+                            callOptionsData.sort((a, b) => a.delta - b.delta);
                             
-                            // 遍历所有CSV数据行，寻找看涨期权
+                            // 寻找Delta=0.5上下最近的期权
+                            let upperOption = null;  // Delta > 0.5
+                            let lowerOption = null;  // Delta < 0.5
+                            
+                            // 找到Delta > 0.5的最小值
+                            for (const option of callOptionsData) {
+                                if (option.delta > 0.5) {
+                                    upperOption = option;
+                                    break;
+                                }
+                            }
+                            
+                            // 找到Delta < 0.5的最大值
+                            for (let i = callOptionsData.length - 1; i >= 0; i--) {
+                                if (callOptionsData[i].delta < 0.5) {
+                                    lowerOption = callOptionsData[i];
+                                    break;
+                                }
+                            }
+                            
+                            console.log('Delta=0.5上下期权:', {
+                                upper: upperOption ? `Delta=${upperOption.delta.toFixed(3)}, Strike=${upperOption.strike}` : '无',
+                                lower: lowerOption ? `Delta=${lowerOption.delta.toFixed(3)}, Strike=${lowerOption.strike}` : '无'
+                            });
+                            
+                            // 如果找到了上下期权，进行加权计算
+                            if (upperOption && lowerOption) {
+                                // 计算权重：Delta越接近0.5，权重越大
+                                const upperWeight = 1 / Math.abs(upperOption.delta - 0.5);
+                                const lowerWeight = 1 / Math.abs(lowerOption.delta - 0.5);
+                                const totalWeight = upperWeight + lowerWeight;
+                                
+                                // 加权平均
+                                underlyingPrice = (upperOption.strike * upperWeight + lowerOption.strike * lowerWeight) / totalWeight;
+                                
+                                                            console.log('✅ Delta加权策略成功：', {
+                                upperStrike: upperOption.strike,
+                                upperDelta: upperOption.delta,
+                                upperWeight: upperWeight.toFixed(4),
+                                lowerStrike: lowerOption.strike,
+                                lowerDelta: lowerOption.delta,
+                                lowerWeight: lowerWeight.toFixed(4),
+                                totalWeight: totalWeight.toFixed(4),
+                                weightedPrice: underlyingPrice.toFixed(2)
+                            });
+                            
+
+                                
+                            } else if (upperOption || lowerOption) {
+                                // 如果只找到一个，直接使用
+                                const option = upperOption || lowerOption;
+                                underlyingPrice = option.strike;
+                                console.log('✅ 使用单个Delta接近0.5的期权行权价:', underlyingPrice, 'Delta:', option.delta);
+                            } else {
+                                console.log('未找到Delta接近0.5的期权，尝试方法2...');
+                                
+                                // 方法2：从所有期权的中间行权价推断
+                                const strikes = callOptionsData.map(opt => opt.strike);
+                                strikes.sort((a, b) => a - b);
+                                const midIndex = Math.floor(strikes.length / 2);
+                                underlyingPrice = strikes[midIndex];
+                                console.log('✅ 方法2成功：从中间行权价推断标的价格:', underlyingPrice, '可用行权价数量:', strikes.length);
+                            }
+                        } else {
+                            console.log('未找到看涨期权数据，尝试方法2...');
+                            
+                            // 方法2：从所有期权的中间行权价推断
+                            const strikes = [];
                             for (let i = 0; i < csvData.length; i++) {
                                 const row = csvData[i];
-                                if (row && row['行权价'] && row['Delta']) {
+                                if (row && row['行权价']) {
                                     const strike = parseFloat(row['行权价']);
-                                    const delta = parseFloat(row['Delta']);
-                                    
-                                    if (!isNaN(strike) && !isNaN(delta) && strike > 100 && strike < 1000 && delta > 0) {
-                                        const deltaDiff = Math.abs(delta - 0.5);
-                                        if (deltaDiff < minDeltaDiff) {
-                                            minDeltaDiff = deltaDiff;
-                                            bestStrike = strike;
-                                        }
+                                    if (!isNaN(strike) && strike > 50 && strike < 2000) {
+                                        strikes.push(strike);
                                     }
                                 }
                             }
                             
-                            if (bestStrike && bestStrike > 200 && bestStrike < 500) {
-                                underlyingPrice = bestStrike;
-                                console.log('✅ 从API CSV看涨期权Delta距离0.5最近的行权价推断标的价格:', underlyingPrice, 'Delta差异:', minDeltaDiff);
-                            } else {
-                                // 如果找不到合适的看涨期权，使用默认值
-                                underlyingPrice = 340.00;
-                                console.log('✅ 使用默认标的价格:', underlyingPrice);
+                            if (strikes.length > 0) {
+                                strikes.sort((a, b) => a - b);
+                                const midIndex = Math.floor(strikes.length / 2);
+                                underlyingPrice = strikes[midIndex];
+                                console.log('✅ 方法2成功：从中间行权价推断标的价格:', underlyingPrice, '可用行权价数量:', strikes.length);
+                            }
+                        }
+                        
+                        // 方法3：如果还是失败，使用第一个有效的行权价
+                        if (!underlyingPrice) {
+                            for (let i = 0; i < csvData.length; i++) {
+                                const row = csvData[i];
+                                if (row && row['行权价']) {
+                                    const strike = parseFloat(row['行权价']);
+                                    if (!isNaN(strike) && strike > 50 && strike < 2000) {
+                                        underlyingPrice = strike;
+                                        console.log('✅ 方法3成功：使用第一个有效行权价作为标的价格:', underlyingPrice);
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }
@@ -3755,7 +3949,24 @@ async function fetchDataFromAPI() {
                 }
             }
             
-            // 更新共享参数输入框
+            // 设置合理的默认值
+            if (!underlyingPrice) {
+                underlyingPrice = 340.00;
+                console.log('⚠️ 无法检测标的价格，使用默认值:', underlyingPrice);
+            }
+            
+            if (!daysToExpiry) {
+                daysToExpiry = 13;
+                console.log('⚠️ 无法检测到期天数，使用默认值:', daysToExpiry);
+            }
+            
+            // 更新全局变量
+            window.currentUnderlyingPrice = underlyingPrice;
+            window.currentDaysToExpiry = daysToExpiry;
+            
+
+            
+            // 更新显示信息
             updateInputFields(underlyingPrice, daysToExpiry);
             
             // 直接进行EV分析并显示结果，而不是显示预览
