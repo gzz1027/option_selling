@@ -3785,7 +3785,7 @@ async function fetchDataFromAPI() {
             let daysToExpiry = null;
             
             // 处理数据
-            const processedData = processCSVData(csvData, 340.00, 13); // 临时使用默认值
+            const processedData = processCSVData(csvData, 340.00, 4); // 临时使用默认值
             importedOptions = processedData;
             
             // 从CSV数据中提取标的价格和到期天数
