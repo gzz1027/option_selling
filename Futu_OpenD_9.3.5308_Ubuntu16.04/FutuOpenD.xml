@@ -9,10 +9,10 @@
 		<api_port>11111</api_port>
 		<!-- 登录帐号 -->
 		<!-- Login account -->
-		<login_account>26883640</login_account>
+		<login_account> </login_account>
 		<!-- 登录密码32位MD5加密16进制 -->
 		<!-- Login password, 32-bit MD5 encrypted hexadecimal --> 
-		<login_pwd_md5>8a5d2d35b6f9ebae380e4459faf3522c</login_pwd_md5>
+		<login_pwd_md5> </login_pwd_md5>
 		<!-- 登录密码明文，密码密文存在情况下只使用密文 -->
 		<!-- Plain text of login password. When cypher text exists, the cypher text will be used. --> 
 		<!-- <login_pwd>您的明文密码</login_pwd> -->
