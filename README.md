@@ -60,6 +60,79 @@ pip3 install -r requirements.txt
 - **积分范围**: 覆盖多标准差价格区间的高精度数值积分
 - **损失函数**: 基于期权定价理论的精确损失量化模型
 
+\documentclass{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\begin{document}
+
+\section{潜在赔付计算公式}
+
+\subsection{1. 基本参数}
+\begin{itemize}
+    \item $S_0$：当前标的价格
+    \item $K$：行权价
+    \item $T$：到期时间（年）
+    \item $\sigma$：隐含波动率
+    \item $r$：无风险利率（通常为0）
+\end{itemize}
+
+\subsection{2. 标准差计算}
+\[
+\sigma_{\text{price}} = S_0 \times \sigma \times \sqrt{T}
+\]
+
+\subsection{3. 潜在赔付（看涨期权）}
+对于看涨期权，潜在赔付为到期时标的价格超过行权价部分的期望值：
+\[
+E\left[\max(S_T - K, 0)\right] = \int_{-\infty}^{\infty} \max(S_T - K, 0) \cdot f(S_T) \, dS_T
+\]
+其中，$f(S_T)$ 是标的价格在到期时的概率密度函数（正态分布）：
+\[
+f(S_T) = \frac{1}{\sigma_{\text{price}} \sqrt{2\pi}} \exp\left(-\frac{(S_T - S_0)^2}{2\sigma_{\text{price}}^2}\right)
+\]
+
+\subsection{4. 潜在赔付（看跌期权）}
+对于看跌期权，潜在赔付为行权价超过到期时标的价格部分的期望值：
+\[
+E\left[\max(K - S_T, 0)\right] = \int_{-\infty}^{\infty} \max(K - S_T, 0) \cdot f(S_T) \, dS_T
+\]
+
+\subsection{5. 数值积分实现}
+通过数值积分近似计算，公式如下：
+
+\subsubsection{看涨期权}
+\[
+\text{Potential Payout} = \sum_{i=1}^{n} \max(S_i - K, 0) \cdot f(S_i) \cdot \Delta S
+\]
+
+\subsubsection{看跌期权}
+\[
+\text{Potential Payout} = \sum_{i=1}^{n} \max(K - S_i, 0) \cdot f(S_i) \cdot \Delta S
+\]
+
+其中：
+\begin{itemize}
+    \item $n = 1000$（积分步数）
+    \item $S_i = S_0 - 3\sigma_{\text{price}} + \frac{6\sigma_{\text{price}} \cdot i}{n}$（价格区间：$S_0 \pm 3\sigma_{\text{price}}$）
+    \item $\Delta S = \frac{6\sigma_{\text{price}}}{n}$（步长）
+\end{itemize}
+
+\subsection{6. 完整公式}
+\[
+\text{Potential Payout} = 
+\begin{cases} 
+\sum_{i=1}^{n} \max(S_i - K, 0) \cdot \frac{1}{\sigma_{\text{price}} \sqrt{2\pi}} \exp\left(-\frac{(S_i - S_0)^2}{2\sigma_{\text{price}}^2}\right) \cdot \frac{6\sigma_{\text{price}}}{n} & \text{看涨期权} \\
+\sum_{i=1}^{n} \max(K - S_i, 0) \cdot \frac{1}{\sigma_{\text{price}} \sqrt{2\pi}} \exp\left(-\frac{(S_i - S_0)^2}{2\sigma_{\text{price}}^2}\right) \cdot \frac{6\sigma_{\text{price}}}{n} & \text{看跌期权}
+\end{cases}
+\]
+
+该公式表示：在期权被行权的情况下，期权卖方需要支付的平均内在价值。
+
+\end{document}
+
+
 ### 核心风险分析系统
 - 基于Delta与隐含波动率(IV)的核心风险因子分析
 - 基于正态分布假设的风险分布图表
