@@ -34,130 +34,108 @@ pip3 install -r requirements.txt
 ./start_api.sh
 ```
 
-### 访问应用
-- **前端界面**: http://localhost:8000
-- **API文档**: http://localhost:8000/docs
+- 访问应用前端界面: http://localhost:8000
+- API 文档: http://localhost:8000/docs
 
 ## 🏗️ 系统架构
 
 ### 后端 (FastAPI)
-- 期权链数据服务：异步IO高性能查询引擎
-- 数据标准化服务：CSV与JSON双向转换
-- 富途API集成：实时市场数据获取与缓存
+- **期权链数据服务**：异步 IO 高性能查询引擎
+- **数据标准化服务**：CSV 与 JSON 双向转换
+- **富途 API 集成**：实时市场数据获取与缓存
 
 ### 前端 (SPA)
-- 离线数据解析引擎：富途标准格式解析
-- 实时市场数据流：API数据获取与更新
-- 策略参数配置中心：统一配置与智能优化
-- 高级可视化渲染：基于Chart.js的交互式图表
+- **离线数据解析引擎**：富途标准格式解析
+- **实时市场数据流**：API 数据获取与更新
+- **策略参数配置中心**：统一配置与智能优化
+- **高级可视化渲染**：基于 Chart.js 的交互式图表
 
 ## 📚 核心功能
 
-### 预期价值(EV)计算引擎
-- **核心算法**: 基于高精度数值积分的精确潜在损失计算方法
-- **计算原理**: 综合考虑期权时间价值、市场波动率与风险敞口的综合评估模型
-- **行权概率**: 基于Delta与市场数据的加权概率模型
+### 预期价值 (EV) 计算引擎
+
+**核心算法**: 基于高精度数值积分的精确潜在损失计算方法
+
+**计算原理**: 综合考虑期权时间价值、市场波动率与风险敞口的综合评估模型
+
+- **行权概率**: 基于 Delta 与市场数据的加权概率模型
 - **积分范围**: 覆盖多标准差价格区间的高精度数值积分
 - **损失函数**: 基于期权定价理论的精确损失量化模型
 
-\documentclass{article}
-\usepackage[UTF8]{ctex}
-\usepackage{amsmath}
-\usepackage{amssymb}
+### 潜在赔付计算公式
 
-\begin{document}
+#### 1. 基本参数
+- $S_0$：当前标的价格
+- $K$：行权价
+- $T$：到期时间（年）
+- $\sigma$：隐含波动率
+- $r$：无风险利率（通常为 0）
 
-\section{潜在赔付计算公式}
+#### 2. 标准差计算
+$$\sigma_{\text{price}} = S_0 \times \sigma \times \sqrt{T}$$
 
-\subsection{1. 基本参数}
-\begin{itemize}
-    \item $S_0$：当前标的价格
-    \item $K$：行权价
-    \item $T$：到期时间（年）
-    \item $\sigma$：隐含波动率
-    \item $r$：无风险利率（通常为0）
-\end{itemize}
-
-\subsection{2. 标准差计算}
-\[
-\sigma_{\text{price}} = S_0 \times \sigma \times \sqrt{T}
-\]
-
-\subsection{3. 潜在赔付（看涨期权）}
+#### 3. 潜在赔付（看涨期权）
 对于看涨期权，潜在赔付为到期时标的价格超过行权价部分的期望值：
-\[
-E\left[\max(S_T - K, 0)\right] = \int_{-\infty}^{\infty} \max(S_T - K, 0) \cdot f(S_T) \, dS_T
-\]
+
+$$E\left[\max(S_T - K, 0)\right] = \int_{-\infty}^{\infty} \max(S_T - K, 0) \cdot f(S_T) \, dS_T$$
+
 其中，$f(S_T)$ 是标的价格在到期时的概率密度函数（正态分布）：
-\[
-f(S_T) = \frac{1}{\sigma_{\text{price}} \sqrt{2\pi}} \exp\left(-\frac{(S_T - S_0)^2}{2\sigma_{\text{price}}^2}\right)
-\]
 
-\subsection{4. 潜在赔付（看跌期权）}
+$$f(S_T) = \frac{1}{\sigma_{\text{price}} \sqrt{2\pi}} \exp\left(-\frac{(S_T - S_0)^2}{2\sigma_{\text{price}}^2}\right)$$
+
+#### 4. 潜在赔付（看跌期权）
 对于看跌期权，潜在赔付为行权价超过到期时标的价格部分的期望值：
-\[
-E\left[\max(K - S_T, 0)\right] = \int_{-\infty}^{\infty} \max(K - S_T, 0) \cdot f(S_T) \, dS_T
-\]
 
-\subsection{5. 数值积分实现}
+$$E\left[\max(K - S_T, 0)\right] = \int_{-\infty}^{\infty} \max(K - S_T, 0) \cdot f(S_T) \, dS_T$$
+
+#### 5. 数值积分实现
 通过数值积分近似计算，公式如下：
 
-\subsubsection{看涨期权}
-\[
-\text{Potential Payout} = \sum_{i=1}^{n} \max(S_i - K, 0) \cdot f(S_i) \cdot \Delta S
-\]
+**5.1 看涨期权**
+$$\text{Potential Payout} = \sum_{i=1}^{n} \max(S_i - K, 0) \cdot f(S_i) \cdot \Delta S$$
 
-\subsubsection{看跌期权}
-\[
-\text{Potential Payout} = \sum_{i=1}^{n} \max(K - S_i, 0) \cdot f(S_i) \cdot \Delta S
-\]
+**5.2 看跌期权**
+$$\text{Potential Payout} = \sum_{i=1}^{n} \max(K - S_i, 0) \cdot f(S_i) \cdot \Delta S$$
 
 其中：
-\begin{itemize}
-    \item $n = 1000$（积分步数）
-    \item $S_i = S_0 - 3\sigma_{\text{price}} + \frac{6\sigma_{\text{price}} \cdot i}{n}$（价格区间：$S_0 \pm 3\sigma_{\text{price}}$）
-    \item $\Delta S = \frac{6\sigma_{\text{price}}}{n}$（步长）
-\end{itemize}
+- $n = 1000$（积分步数）
+- $S_i = S_0 - 3\sigma_{\text{price}} + \frac{6\sigma_{\text{price}} \cdot i}{n}$（价格区间：$S_0 \pm 3\sigma_{\text{price}}$）
+- $\Delta S = \frac{6\sigma_{\text{price}}}{n}$（步长）
 
-\subsection{6. 完整公式}
-\[
-\text{Potential Payout} = 
+#### 6. 完整公式
+$$\text{Potential Payout} = 
 \begin{cases} 
 \sum_{i=1}^{n} \max(S_i - K, 0) \cdot \frac{1}{\sigma_{\text{price}} \sqrt{2\pi}} \exp\left(-\frac{(S_i - S_0)^2}{2\sigma_{\text{price}}^2}\right) \cdot \frac{6\sigma_{\text{price}}}{n} & \text{看涨期权} \\
 \sum_{i=1}^{n} \max(K - S_i, 0) \cdot \frac{1}{\sigma_{\text{price}} \sqrt{2\pi}} \exp\left(-\frac{(S_i - S_0)^2}{2\sigma_{\text{price}}^2}\right) \cdot \frac{6\sigma_{\text{price}}}{n} & \text{看跌期权}
-\end{cases}
-\]
+\end{cases}$$
 
 该公式表示：在期权被行权的情况下，期权卖方需要支付的平均内在价值。
 
-\end{document}
-
-
 ### 核心风险分析系统
-- 基于Delta与隐含波动率(IV)的核心风险因子分析
+- 基于 Delta 与隐含波动率 (IV) 的核心风险因子分析
 - 基于正态分布假设的风险分布图表
 - 基于高精度数值积分的潜在损失精确计算
 
 ### 智能过滤与优化系统
-- **看涨期权策略**: Delta范围 0.01 到 0.4 (低风险卖方策略)
-- **看跌期权策略**: Delta范围 -0.4 到 -0.01 (风险可控的卖方策略)
-- **混合策略组合**: Delta范围 -0.4 到 0.4 (多元化风险分散策略)
-- **行权概率计算**: 基于Delta与市场数据的智能加权概率模型
+- **看涨期权策略**: Delta 范围 0.01 到 0.4 (低风险卖方策略)
+- **看跌期权策略**: Delta 范围 -0.4 到 -0.01 (风险可控的卖方策略)
+- **混合策略组合**: Delta 范围 -0.4 到 0.4 (多元化风险分散策略)
+- **行权概率计算**: 基于 Delta 与市场数据的智能加权概率模型
 
-## 🔌 核心API接口
+## 🔌 核心 API 接口
 
 ### 期权到期日期查询
-```
+```http
 GET /api/expiration-dates/{stock_code}
 ```
 
 ### 期权链数据查询
-```
+```http
 POST /api/option-chain
 ```
 
-### CSV数据生成
-```
+### CSV 数据生成
+```http
 POST /api/generate-csv
 ```
 
@@ -165,14 +143,14 @@ POST /api/generate-csv
 
 ### 美股 (US)
 - **特斯拉** (US.TSLA) - 电动车龙头
-- **英伟达** (US.NVDA) - AI芯片巨头
+- **英伟达** (US.NVDA) - AI 芯片巨头
 - **苹果** (US.AAPL) - 科技巨头
 - **亚马逊** (US.AMZN) - 电商龙头
 - **微软** (US.MSFT) - 软件服务巨头
 - **谷歌** (US.GOOGL) - 搜索引擎巨头
 - **Meta** (US.META) - 社交媒体巨头
-- **SPY** (US.SPY) - 标普500指数ETF
-- **QQQ** (US.QQQ) - 纳斯达克100指数ETF
+- **SPY** (US.SPY) - 标普 500 指数 ETF
+- **QQQ** (US.QQQ) - 纳斯达克 100 指数 ETF
 - **COIN** (US.COIN) - 加密货币交易所
 
 ### 港股 (HK)
@@ -183,10 +161,10 @@ POST /api/generate-csv
 ## 💡 应用场景
 
 ### 期权卖方策略量化分析
-1. **高概率收益策略识别**: 基于高精度数值积分EV计算的最优卖方机会筛选
-2. **核心风险控制**: 基于Delta与隐含波动率(IV)的过滤系统风险管控
-3. **批量策略分析**: 基于批量处理的期权定价与分析效率提升
-4. **实时策略决策**: 基于实时市场数据流的动态策略调整与决策支持
+- **高概率收益策略识别**: 基于高精度数值积分 EV 计算的最优卖方机会筛选
+- **核心风险控制**: 基于 Delta 与隐含波动率 (IV) 的过滤系统风险管控
+- **批量策略分析**: 基于批量处理的期权定价与分析效率提升
+- **实时策略决策**: 基于实时市场数据流的动态策略调整与决策支持
 
 ### 投资组合风险管理
 - 策略风险收益优化
@@ -195,7 +173,7 @@ POST /api/generate-csv
 
 ## 🔧 配置说明
 
-### 富途OpenD配置
+### 富途 OpenD 配置
 - **主机**: 127.0.0.1
 - **端口**: 11111
 
@@ -207,8 +185,8 @@ POST /api/generate-csv
 ## 🚨 注意事项
 
 ### 技术风险
-- 确保富途OpenD正常运行
-- 需要访问富途API的网络权限
+- 确保富途 OpenD 正常运行
+- 需要访问富途 API 的网络权限
 
 ### 投资风险
 - 期权交易具有高风险特性
@@ -236,6 +214,6 @@ POST /api/generate-csv
 - **文档地址**: http://localhost:8000/docs
 - **健康检查**: http://localhost:8000/api/health
 
----
+## ⚠️ 免责声明
 
-**免责声明**: 本工具仅用于期权分析和策略研究，不构成投资建议。期权交易具有高风险特性，请谨慎投资，风险自担。
+本工具仅用于期权分析和策略研究，不构成投资建议。期权交易具有高风险特性，请谨慎投资，风险自担。
